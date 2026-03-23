@@ -63,9 +63,56 @@ end
         - b: Coeficiente de atrito rotacional [N.m.s/rad] (opcional)
 =#
 
-function pendulo!(dx, x, params, t)
-    g, L, m, b = params.g, params.L, params.m, params.b
+struct PenduloParams
+    gravidade       ::Float64
+    comprimento     ::Float64
+    massa           ::Float64
+    coefAtrito      ::Float64
+    estadosIniciais ::NamedTuple
+    variaveisEstado ::Tuple{String, String}
+    nomeSistema     ::String
+    
 
-    dx[1] = x[2]  
-    dx[2] = -(g / L) * sin(x[1]) - (b / (m * L^2)) * x[2]  
+    function PenduloParams(; gravidade, comprimento, massa, coefAtrito, estadosIniciais)
+        new(gravidade, comprimento, massa, coefAtrito, estadosIniciais, 
+            ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"), 
+            "Pêndulo Simples")
+    end
 end
+
+function pendulo!(dx, x, params, t)
+        g, L, m, b = params.gravidade, params.comprimento, params.massa, params.coefAtrito
+
+        dx[1] = x[2]  
+        dx[2] = -(g / L) * sin(x[1]) - (b / (m * L^2)) * x[2]  
+end
+
+function animacaoPendulo(; solucao, params, fps=30)
+    duracao = solucao.t[end]
+    instantes_de_tempo = 0 : (1/fps) : duracao
+
+    gr()
+    anim = @animate for t in instantes_de_tempo
+        # Ângulo atual do pêndulo em relação à vertical
+        θ = solucao(t)[1]
+
+        # Comprimento da haste
+        L = params.comprimento
+        
+        # Coordenadas da massa 
+        x_massa =  L * sin(θ)
+        y_massa = -L * cos(θ)
+
+        # Plotando a haste do pêndulo
+        Plots.plot([0, x_massa], [0, y_massa], 
+            lw=3, color=:black, label="", 
+            xlim=(-1.2, 1.2), ylim=(-1.2, 0.2),
+            aspect_ratio=:equal, title="Tempo: $(round(t, digits=2))s")
+        
+        # Plotando a massa no final da haste
+        scatter!([x_massa], [y_massa], 
+                markersize=10, color=:red, label="")
+    end
+    mp4(anim, "Controle/Animações/pendulo.mp4", fps = fps)
+end
+

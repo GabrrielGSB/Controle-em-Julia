@@ -1,25 +1,20 @@
 using OrdinaryDiffEq
 using Plots
 
-# 1. Definir a função do sistema (du/dt = f(u, p, t))
-# u[1] é a posição (x), u[2] é a velocidade (v)
-# p são os parâmetros [k, m]
-function massa_mola!(dx, x, constantes, t)
-    k = constantes.k; b = constantes.b; m = constantes.m; 
+include("Controle/SistemasLTI.jl")
 
-    dx[1] = x[2]           # dx/dt = v
-    dx[2] = -(b/m) * x[2] - (k/m) * x[1]  # dv/dt = -(k/m)x
+# Função do Pêndulo Simples
+function pendulo!(dx, x, p, t)
+    g, L, b, m = p
+    dx[1] = x[2]
+    dx[2] = -(g/L)*sin(x[1]) - (b/(m*L^2))*x[2]
 end
 
-# 2. Condições Iniciais e Parâmetros
-u0 = [1.0, 0.0]      
-tspan = (0.0, 20.0)   
-constantes = (k=10.0, b=1, m=1)    
+# Parâmetros e Solução
+p = [9.81, 1.0, 0.1, 1.0] # g, L, b, m
+u0 = [pi/4, 0.0]           # 45 graus inicial
+tspan = (0.0, 20.0)
+prob = ODEProblem(pendulo!, u0, tspan, p)
+sol = solve(prob) # saveat define a "fluidez" da animação (FPS)
 
-# 3. Definir e Resolver o Problema
-prob = ODEProblem(massa_mola!, u0, tspan, constantes)
-sol  = solve(prob)
-
-# 4. Plotar os resultados
-plot(sol, idxs=(0, 1), title="Sistema Massa-Mola",
-     xlabel="Tempo (t)", ylabel="Posição (x)", label="Posição")
+animacaoPendulo(solucao=sol, params=p, fps=30)
