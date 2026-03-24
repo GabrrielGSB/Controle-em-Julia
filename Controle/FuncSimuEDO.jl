@@ -16,15 +16,13 @@ function simularSistemaMalhaAberta(; sistema, estadosIniciais, parametros, tempo
                    title  = parametros.nomeSistema,
                    xlabel =  eixosVisu[1] == 0 ? "Tempo (t)" : parametros.variaveisEstado[eixosVisu[1]], 
                    ylabel =  eixosVisu[2] == 0 ? "Tempo (t)" : parametros.variaveisEstado[eixosVisu[2]], 
-                   label  = "Comportamento do sistema",
+                   label  = "Comportamento",
                    lw     = 2,       # Largura da linha
                    marker = :circle, # Adiciona pontos para você passar o mouse por cima
                    ms     = 2))       # Tamanho do marcador
     end 
 
     if animar   
-        animacaoPendulo(solucao = solucao, 
-                        params  = parametros, 
-                        fps     = animarFPS)
+        gerarAnimacao(solucao, parametros, animarFPS)
     end
 end
