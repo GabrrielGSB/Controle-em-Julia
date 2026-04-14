@@ -2,12 +2,31 @@ using OrdinaryDiffEq
 using PlotlyJS
 
 function simularSistemaMalhaAberta(; sistema, estadosIniciais, parametros, tempoSimulacao, 
-                                     visualizacao=true, eixosVisu=(0, 1), animar = false, animarFPS = 30, CSV=false)
+                                     visualizacao=true, eixosVisu=(0, 1), 
+                                     visualizarTodosEstados = false,
+                                     animar = false, animarFPS = 30, CSV=false)
 
     estadosIniciais = collect(values(estadosIniciais))
 
     problema = ODEProblem(sistema, estadosIniciais, tempoSimulacao, parametros)
     solucao  = solve(problema)
+
+    if visualizarTodosEstados
+        plotlyjs() 
+        
+        # Converte a tupla de nomes em uma matriz 1xN para aplicar os nomes corretos na legenda
+        num_estados = length(parametros.variaveisEstado)
+        nomes_matriz = reshape(collect(parametros.variaveisEstado), 1, num_estados)
+
+        display(Plots.plot(solucao, 
+                   title  = "$(parametros.nomeSistema) - Todos os Estados",
+                   xlabel = "Tempo (t)", 
+                   ylabel = "Amplitude", 
+                   label  = nomes_matriz,
+                   lw     = 4,       # Largura da linha
+                   marker = :circle, # Adiciona pontos interativos
+                   ms     = 0.5))      # Tamanho do marcador
+    end
 
     if visualizacao
         plotlyjs() 

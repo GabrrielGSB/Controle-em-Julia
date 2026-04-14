@@ -5,100 +5,7 @@ function gerarAnimacao(solucao, params, fps)
     println("Aviso: Nenhuma função de animação definida para o sistema: $(params.nomeSistema)")
 end
 
-#=
-1. SISTEMA DINÂMICO MASSA-MOLA-AMORTECEDOR------------------------------------------------------------
-    1.1. DESCRIÇÃO:
-        Representa um corpo de massa 'm' preso a uma mola de rigidez 'k' e um 
-        amortecedor de coeficiente 'b'. O sistema converte energia potencial 
-        (mola) em cinética (movimento) enquanto o amortecedor dissipa energia 
-        na forma de calor (atrito).
 
-    1.2. MODELAGEM EM ESPAÇO DE ESTADOS:
-        O sistema de 2ª ordem (Lei de Newton: F = m*a) é decomposto em duas 
-        equações de 1ª ordem para ser resolvido numericamente:
-
-        1.2.1. Vetor de Estados: 
-            - x[1] : Posição (m)
-            - x[2] : Velocidade (m/s)
-
-        1.2.2. Vetor de Derivadas (dx):
-            - dx[1] = x[2]         -> A variação da posição é a velocidade.
-            - dx[2] = dv/dt        -> A variação da velocidade é a aceleração, 
-                                        calculada pelo balanço de forças: 
-                                        a = (-b*v - k*x) / m
-
-    1.3.PARÂMETROS:
-        - k: Constante elástica [N/m]
-        - b: Coeficiente de amortecimento [N.s/m]
-        - m: Massa do corpo [kg]
-=#
-
-struct MassaMolaParams
-    coefElastico    ::Float64
-    coefAtrito      ::Float64
-    massa           ::Float64
-    estadosIniciais ::NamedTuple
-    variaveisEstado ::Tuple{String, String}
-    nomeSistema     ::String
-
-    function MassaMolaParams(; coefElastico, coefAtrito, massa, estadosIniciais)
-        new(coefElastico, coefAtrito, massa, estadosIniciais, 
-            ("Posição x (m)", "Velocidade v (m/s)"), 
-            "Massa-Mola-Amortecedor")
-    end
-end
-
-function massa_mola_amortecedor!(dx, x, params, t)
-    k, b, m = params.coefElastico, params.coefAtrito, params.massa
-
-    dx[1] = x[2]  
-    dx[2] = (-b * x[2] - k * x[1]) / m  
-end
-
-function gerarAnimacao(solucao, params::MassaMolaParams, fps)
-    gr() 
-    
-    duracao = solucao.t[end]
-    instantes_de_tempo = 0 : (1/fps) : duracao
-    
-    # 1. Criamos um objeto de animação vazio
-    anim = Plots.Animation()
-    
-    comprimento_repouso = 1.0  
-    distancia_parede_min = 0.1 
-
-    # 2. O @showprogress agora funciona sem conflitos!
-    @showprogress "Renderizando Frames: " for t in instantes_de_tempo
-        x_sol = solucao(t)[1]
-        x_absoluto = comprimento_repouso + x_sol
-        x_visual = max(distancia_parede_min, x_absoluto)
-        
-        # Geramos o gráfico do frame atual
-        p = Plots.plot([0, x_visual], [0, 0], 
-            lw=4, color=:blue, label="Mola", 
-            xlim=(-0.2, 2.5), ylim=(-0.5, 0.5),
-            aspect_ratio=:equal, grid=true)
-            
-        plot!(p, [0, 0], [-0.3, 0.3], color=:black, lw=6, label="")
-        plot!(p, [-0.2, 2.5], [-0.12, -0.12], color=:grey, lw=1, label="")
-
-        scatter!(p, [x_visual], [0], 
-            markershape=:square, markersize=25, 
-            color=:grey, label="Massa")
-            
-        title!(p, "Tempo: $(round(t, digits=2))s")
-
-        Plots.frame(anim, p)
-    end
-    
-    path_out = "Controle/Animações/massa_mola_reta.mp4"
-    mkpath(dirname(path_out))
-    
-    println("\nCodificando vídeo final...")
-    mp4(anim, path_out, fps = fps)
-    println("Vídeo salvo em: $path_out")
-end
-#------------------------------------------------------------------------------------------------------
 
 #=
 2. SISTEMA DINÂMICO DE PÊNDULO SIMPLES-----------------------------------------------------------------
@@ -242,3 +149,151 @@ end
 #     println("Sucesso! Vídeo salvo em: $caminho_video")
 # end
 #-------------------------------------------------------------------------------------------------------
+
+#=
+3. SISTEMA DINÂMICO DE DRONE (QUADROTOR 6-DOF) --------------------------------------------------------
+    3.1. DESCRIÇÃO:
+        Representa a cinemática e a dinâmica não-linear de um drone no espaço 3D.
+        O modelo considera forças e torques atuando no referencial do corpo e os 
+        converte para o referencial de inércia (Terra).
+
+    3.2. MODELAGEM EM ESPAÇO DE ESTADOS:
+        O sistema possui 12 variáveis de estado, decompostas em 12 equações de 1ª ordem.
+
+        3.2.1. Vetor de Estados: 
+            - x[1], x[2], x[3]   : Posição na Terra (X, Y, Z)
+            - x[4], x[5], x[6]   : Velocidade linear no eixo do corpo (u, v, w)
+            - x[7], x[8], x[9]   : Ângulos de Euler (ϕ Roll, θ Pitch, ψ Yaw)
+            - x[10], x[11], x[12]: Velocidade angular no eixo do corpo (p, q, r)
+
+        3.2.2. Variáveis de Entrada de Controle (U):
+            - U1 : Empuxo Total (Thrust)
+            - U2 : Torque de Rolagem (Roll)
+            - U3 : Torque de Arfagem (Pitch)
+            - U4 : Torque de Guinada (Yaw)
+
+    3.3. PARÂMETROS:
+        - m: Massa do drone [kg]
+        - g: Aceleração da gravidade [m/s²]
+        - Ixx, Iyy, Izz: Momentos de inércia nos respectivos eixos [kg.m²]
+        - controleU: Vetor com as entradas [U1, U2, U3, U4]
+=#
+
+struct DroneParams
+    massa           ::Float64
+    gravidade       ::Float64
+    Ixx             ::Float64
+    Iyy             ::Float64
+    Izz             ::Float64
+    Ct              ::Float64 
+    Cl              ::Float64 
+    L               ::Float64 
+    controleW       ::Vector{Float64} # [w1, w2, w3, w4]
+    estadosIniciais ::NamedTuple
+    variaveisEstado ::Tuple
+    nomeSistema     ::String
+
+    function DroneParams(; massa, gravidade=9.81, Ixx, Iyy, Izz, Ct, Cl, L, controleW=[0.0, 0.0, 0.0, 0.0], estadosIniciais)
+        new(massa, gravidade, Ixx, Iyy, Izz, Ct, Cl, L, controleW, estadosIniciais, 
+            ("X", "Y", "Z", "u", "v", "w", "ϕ", "θ", "ψ", "p", "q", "r"), 
+            "Drone Quadrotor")
+    end
+end
+
+function drone!(dx, x, params, t)
+    # Extração de parâmetros físicos
+    m, g = params.massa, params.gravidade
+    Ixx, Iyy, Izz = params.Ixx, params.Iyy, params.Izz
+    Ct, Cl, L = params.Ct, params.Cl, params.L
+    
+    # Extração das velocidades dos motores
+    w1, w2, w3, w4 = params.controleW[1], params.controleW[2], params.controleW[3], params.controleW[4]
+
+    # Cálculos das entradas de controle (U1 a U4) com base na velocidade dos motores
+    U1 = Ct * (w1^2 + w2^2 + w3^2 + w4^2)
+    U2 = Ct * L * (w1^2 - w3^2)
+    U3 = Ct * L * (w2^2 - w4^2)
+    U4 = Cl * (w1^2 - w2^2 + w3^2 - w4^2)
+
+    # Extração de estados
+    # X, Y, Z = x[1], x[2], x[3] (Não são diretamente necessários para calcular as derivadas)
+    u, v, w_lin     = x[4], x[5], x[6] # w_lin para não conflitar com velocidade dos motores
+    phi, theta, psi = x[7], x[8], x[9]
+    p, q, r         = x[10], x[11], x[12]
+
+    # Pré-cálculo trigonométrico
+    s_phi, c_phi = sin(phi), cos(phi)
+    s_theta, c_theta, t_theta = sin(theta), cos(theta), tan(theta)
+    s_psi, c_psi = sin(psi), cos(psi)
+
+    # 1. Cinemática de Translação (X, Y, Z dot)
+    dx[1] = w_lin * (s_phi * s_psi + c_phi * c_psi * s_theta) - v * (c_phi * s_psi - c_psi * s_phi * s_theta) + u * c_psi * c_theta
+    dx[2] = v * (c_phi * c_psi + s_phi * s_psi * s_theta) - w_lin * (c_psi * s_phi - c_phi * s_psi * s_theta) + u * c_theta * s_psi
+    dx[3] = w_lin * c_phi * c_theta - u * s_theta + v * c_theta * s_phi
+
+    # 2. Dinâmica de Translação (u, v, w dot)
+    dx[4] = r * v - q * w_lin + g * s_theta
+    dx[5] = p * w_lin - r * u - g * c_theta * s_phi
+    dx[6] = q * u - p * v - g * c_phi * c_theta + (U1 / m)
+
+    # 3. Cinemática de Rotação (ϕ, θ, ψ dot)
+    dx[7] = p + q * s_phi * t_theta + r * c_phi * t_theta
+    dx[8] = q * c_phi - r * s_phi
+    dx[9] = r * (c_phi / c_theta) + q * (s_phi / c_theta)
+
+    # 4. Dinâmica de Rotação (p, q, r dot)
+    dx[10] = (1 / Ixx) * (U2 + (Iyy - Izz) * q * r)
+    dx[11] = (1 / Iyy) * (U3 + (Izz - Ixx) * p * r)
+    dx[12] = (1 / Izz) * (U4 + (Ixx - Iyy) * p * q)
+end
+
+function gerarAnimacao(solucao, params::DroneParams, fps)
+    gr() 
+    println("Iniciando animação 3D do Drone...")
+
+    duracao = solucao.t[end]
+    instantes_de_tempo = 0 : (1/fps) : duracao
+    
+    anim = Plots.Animation()
+    
+    # Extrair limites baseados na trajetória total para fixar a câmera 3D
+    traj_x = [solucao(t)[1] for t in solucao.t]
+    traj_y = [solucao(t)[2] for t in solucao.t]
+    traj_z = [solucao(t)[3] for t in solucao.t]
+    
+    xlims = (minimum(traj_x)-1, maximum(traj_x)+1)
+    ylims = (minimum(traj_y)-1, maximum(traj_y)+1)
+    zlims = (minimum(traj_z)-1, maximum(traj_z)+1)
+
+    @showprogress "Progresso 3D: " for t in instantes_de_tempo
+        X_atual = solucao(t)[1]
+        Y_atual = solucao(t)[2]
+        Z_atual = solucao(t)[3]
+        
+        # Histórico da trajetória até o tempo t
+        hist_x = [solucao(tau)[1] for tau in 0:(1/fps):t]
+        hist_y = [solucao(tau)[2] for tau in 0:(1/fps):t]
+        hist_z = [solucao(tau)[3] for tau in 0:(1/fps):t]
+
+        # Desenhar o rastro
+        p = Plots.plot(hist_x, hist_y, hist_z, 
+            lw=2, color=:blue, label="Trajetória",
+            xlims=xlims, ylims=ylims, zlims=zlims,
+            xlabel="Eixo X", ylabel="Eixo Y", zlabel="Eixo Z",
+            camera=(45, 30), # Ângulo isométrico de visualização
+            title="Posição 3D do Drone - $(round(t, digits=2))s")
+        
+        # Desenhar a posição da massa do drone
+        scatter!(p, [X_atual], [Y_atual], [Z_atual], 
+            markershape=:circle, markersize=6, color=:red, label="Drone")
+
+        Plots.frame(anim, p)
+    end
+    
+    caminho_video = "Controle/Animações/drone_3d.mp4"
+    mkpath(dirname(caminho_video))
+    
+    println("\nFinalizando arquivo de vídeo 3D...")
+    mp4(anim, caminho_video, fps = fps)
+    println("Sucesso! Vídeo salvo em: $caminho_video")
+end
