@@ -6,8 +6,6 @@ function simularSistemaMalhaAberta(; sistema, estadosIniciais, parametros, tempo
                                      visualizarTodosEstados = false,
                                      animar = false, animarFPS = 30, CSV=false)
 
-    estadosIniciais = collect(values(estadosIniciais))
-
     problema = ODEProblem(sistema, estadosIniciais, tempoSimulacao, parametros)
     solucao  = solve(problema)
 

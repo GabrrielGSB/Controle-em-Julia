@@ -1,3 +1,7 @@
+using ProgressMeter
+using Plots
+include("../Métodos Controle/PID.jl")
+
 #=
 2. SISTEMA DINÂMICO DE PÊNDULO SIMPLES-----------------------------------------------------------------
     2.1. DESCRIÇÃO:
@@ -33,11 +37,10 @@ struct PenduloParams
     comprimento     ::Float64
     massa           ::Float64
     coefAtrito      ::Float64
-    estadosIniciais ::NamedTuple
+    estadosIniciais ::Vector{Float64}
     variaveisEstado ::Tuple{String, String}
     nomeSistema     ::String
     
-
     function PenduloParams(; gravidade, comprimento, massa, coefAtrito, estadosIniciais)
         new(gravidade, comprimento, massa, coefAtrito, estadosIniciais, 
             ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"), 
@@ -45,16 +48,41 @@ struct PenduloParams
     end
 end
 
-function pendulo!(dx, x, params, t)
-        g, L, m, b = params.gravidade, params.comprimento, params.massa, params.coefAtrito
+function pendulo!(dx, x, p, t)
+    g, L, m, b = p.gravidade, p.comprimento, p.massa, p.coefAtrito
 
-        x1, x2 = x[1], x[2]
+    x1, x2 = x[1], x[2]
 
-        dx[1] = x2  
-        dx[2] = -(g/L)*sin(x1) - (b/(m*L^2))*x2 
+    dx[1] = x2  
+    dx[2] = -(g/L)*sin(x1) - (b/(m*L^2))*x2 
+end
+function penduloPID!(dx, x, p::PIDparams, t)
+    g, L = p.fisica.gravidade, p.fisica.comprimento
+    m, b = p.fisica.massa, p.fisica.coefAtrito
+    
+    I = m*L^2
+
+    x1, x2 = x[1], x[2]
+
+    u = calcularPID(x, p)
+
+    dx[1] = x2  
+    dx[2] = (-m*g*L*sin(x1) - b*x2 + u)/I
+    dx[3] = p.referencia - x1
 end
 
-function gerarAnimacao(solucao, params::PenduloParams, fps)
+function calcularPID(x, p::PIDparams)
+    θ             = x[1]
+    ω             = x[2]
+    integral_erro = x[3] 
+    
+    erro          = p.referencia - θ
+    derivada_erro = -ω 
+
+    return (p.Kp * erro) + (p.Ki * integral_erro) + (p.Kd * derivada_erro)
+end
+
+function gerarAnimacao(solucao, p::PenduloParams, fps)
     gr() 
     println("Iniciando animação do Pêndulo...")
 
@@ -69,24 +97,21 @@ function gerarAnimacao(solucao, params::PenduloParams, fps)
     @showprogress "Progresso: " for t in instantes_de_tempo
         # Ângulo atual (interpolação contínua)
         θ = solucao(t)[1]
-        L = params.comprimento
+        L = p.comprimento
         
         # Trigonometria para posição da massa
         x_massa =  L * sin(θ)
         y_massa = -L * cos(θ)
 
-        # 3. Geramos o gráfico do frame atual e guardamos na variável 'p'
-        p = Plots.plot([0, x_massa], [0, y_massa], 
-            lw=3, color=:black, label="", 
-            xlim=(-1.2, 1.2), ylim=(-1.2, 0.2),
-            aspect_ratio=:equal, title="Tempo: $(round(t, digits=2))s")
+        plot = Plots.plot([0, x_massa], [0, y_massa], 
+                          lw=3, color=:black, label="", 
+                          xlim=(-2, 2), ylim=(-1.2, 2),
+                          aspect_ratio=:equal, title="Tempo: $(round(t, digits=2))s")
         
-        # Adicionamos a massa ao gráfico 'p'
-        scatter!(p, [x_massa], [y_massa], 
+        scatter!(plot, [x_massa], [y_massa], 
                  markersize=10, color=:red, label="")
         
-        # 4. Capturamos o frame manualmente
-        Plots.frame(anim, p)
+        Plots.frame(anim, plot)
     end
     
     # Configuração do caminho e salvamento

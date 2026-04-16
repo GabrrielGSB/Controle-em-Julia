@@ -10,6 +10,9 @@ using OrdinaryDiffEq
 """
 function resolverSistema(sistema, condicoesIniciais, intervaloTempo, p=nothing; 
                          resolucao=0.01)
+
+    condicoesIniciais = collect(values(condicoesIniciais))
+
     problema = ODEProblem(sistema, condicoesIniciais, intervaloTempo, p)
     solucao  = solve(problema, saveat=resolucao)
 
