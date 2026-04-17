@@ -1,6 +1,5 @@
 using ProgressMeter
 using DynamicPolynomials
-using Plots
 
 #=
 3. SISTEMA DINÂMICO DE DRONE (QUADROTOR 6-DOF) --------------------------------------------------------
@@ -118,9 +117,8 @@ function drone_malha_fechada!(dx, x, p, t)
 
         # DEFINIÇÃO DAS AÇÕES DE CONTROLE
             U_barra = -3 * erro_Z - 0.5 * Vz
-            fator_inclinacao = max(cos(Φ) * cos(θ), 0.01) 
 
-            U1 = ((m*g) + U_barra) / fator_inclinacao
+            U1 = ((m*g) + U_barra) 
             U2 = -0.05*erro_Φ - 0.05*VΦ
             U3 = -0.05*erro_θ - 0.05*Vθ
             U4 = -0.0061*erro_Ψ - 0.002*VΨ

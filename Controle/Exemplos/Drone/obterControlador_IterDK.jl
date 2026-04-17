@@ -1,4 +1,3 @@
-
 include("../../SistemasLTI/Drone.jl")
 include("../../Não Linear/algoritmos/IteraçãoDK.jl")
 

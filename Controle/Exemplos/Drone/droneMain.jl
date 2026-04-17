@@ -12,7 +12,7 @@ paramSistema = DroneParams(
     Ct = 2.980e-6,
     Cl = 1.14e-7,
     L = 0.225,
-    estadosIniciais = zeros(12) # Drone começa no chão (Z=0) e parado
+    estadosIniciais = zeros(12) 
 )
 
 # Definindo o problema com a nova função
