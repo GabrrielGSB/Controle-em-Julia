@@ -1,19 +1,17 @@
 using DynamicPolynomials
 
-import Base: sin, cos
+import Base: sin, cos, tan
 
-# Taylor de 3º grau para o seno: sin(x) ≈ x - x^3/6
 sin(p::AbstractPolynomialLike) = p - (p^3)/6 
-
-# Taylor de 2º grau para o cosseno: cos(x) ≈ 1 - x^2/2
 cos(p::AbstractPolynomialLike) = 1 - (p^2)/2 
+tan(p::AbstractPolynomialLike) = p + (p^3)/3
 
 
 """
     Recebe uma função de EDO numérica padrão e retorna os polinômios f(x), g(x) 
     e as variáveis simbólicas compatíveis com o controle SOS.
 """
-function extrairSistemaAfim(sistema!, params, dim_x; g_vetor=[0.0, 1.0])
+function extrairSistemaAfim(sistema!, params, dim_x; g=[0.0, 1.0])
     # 1. Cria as variáveis simbólicas usando DynamicPolynomials
     @polyvar x[1:dim_x]
     
@@ -24,7 +22,7 @@ function extrairSistemaAfim(sistema!, params, dim_x; g_vetor=[0.0, 1.0])
     sistema!(f, x, params, 0.0)
     
     # 4. Define a matriz de entrada do controle g(x).
-    g = g_vetor
+    g = g
     
     return f, g, x
 end

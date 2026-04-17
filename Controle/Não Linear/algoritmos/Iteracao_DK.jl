@@ -23,7 +23,7 @@ u_final = nothing
 V_final = V_atual
 
 # 4. Loop Principal
-iter = 0
+iter = 1
 while iter <= max_iter
     println("--- Iteração $iter ---")
    
@@ -68,6 +68,6 @@ else
     println("Melhor controle u(x) viável encontrado:")
     println(u_final, "\n")
     
-    println("Melhor função V(x) viável encontrada:")
-    println(V_final, "\n")
+    # println("Melhor função V(x) viável encontrada:")
+    # println(V_final, "\n")
 end

@@ -1,6 +1,5 @@
 using JuMP
 using SumOfSquares
-using DynamicPolynomials
 using COSMO
 using OrdinaryDiffEq
 using LinearAlgebra
