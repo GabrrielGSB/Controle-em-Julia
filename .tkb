@@ -1,0 +1,60 @@
+{
+  "scope": "Workspace",
+  "tasks": {
+    "MV54DRdTSzz8-Df0I_I6W": {
+      "id": "MV54DRdTSzz8-Df0I_I6W",
+      "description": "## Sistema Massa-Mola\n### Implementação\n### Visualização\n- [ ] Adição da possibilidade de animação.",
+      "columnId": "column-todo",
+      "color": "#80808000"
+    },
+    "n6P0HW-XkXcvfqwb2b3hQ": {
+      "id": "n6P0HW-XkXcvfqwb2b3hQ",
+      "description": "- [ ] Adicionar textos .md para explicação das funções. \n- [ ] Incrementar explicação com fluxogramas.\n- [ ] Adicionar fluxograma marmeid para explicar organização do frame work.\n ",
+      "columnId": "column-doing",
+      "color": "#80808000"
+    },
+    "vMi0mbO0y2qdd_agNy18-": {
+      "id": "vMi0mbO0y2qdd_agNy18-",
+      "description": "- [ ] Melhor separação das funções de controle das plantas.\n- [ ] Adição de funções para aplicação de controladores em série com a planta.\n- [ ] Adição de funções para aplicação de entrada/disturbio no sistema",
+      "columnId": "column-L29-ouWgkIlapL5xuuwZm",
+      "color": "#80808000"
+    },
+    "aEQf1Mzlf8t2wePDTACeT": {
+      "id": "aEQf1Mzlf8t2wePDTACeT",
+      "description": "## Adição de processamento paralelo na CPU e GPU\n\n- [x] Criação de templates para uso da GPU.\n- [x] Criação de templates para uso dos núcleos da CPU.\n- [ ] Implementação de funções que usam esses recursos.",
+      "columnId": "column-done",
+      "color": "#80808000"
+    }
+  },
+  "columns": [
+    {
+      "id": "column-todo",
+      "title": "SISTEMAS EXEMPLO",
+      "color": "#00000000",
+      "tasksIds": [
+        "MV54DRdTSzz8-Df0I_I6W"
+      ]
+    },
+    {
+      "id": "column-doing",
+      "title": "FRAMEWORK (Documentação)",
+      "tasksIds": [
+        "n6P0HW-XkXcvfqwb2b3hQ"
+      ]
+    },
+    {
+      "id": "column-L29-ouWgkIlapL5xuuwZm",
+      "title": "FRAMEWORK (Estrutura)",
+      "tasksIds": [
+        "vMi0mbO0y2qdd_agNy18-"
+      ]
+    },
+    {
+      "id": "column-done",
+      "title": "FERRAMENTAS",
+      "tasksIds": [
+        "aEQf1Mzlf8t2wePDTACeT"
+      ]
+    }
+  ]
+}

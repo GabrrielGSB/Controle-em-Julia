@@ -33,7 +33,6 @@ include("../Métodos Controle/PID.jl")
 =#
 
 struct PenduloParams
-    gravidade       ::Float64
     comprimento     ::Float64
     massa           ::Float64
     coefAtrito      ::Float64
@@ -41,15 +40,15 @@ struct PenduloParams
     variaveisEstado ::Tuple{String, String}
     nomeSistema     ::String
     
-    function PenduloParams(; gravidade, comprimento, massa, coefAtrito, estadosIniciais)
-        new(gravidade, comprimento, massa, coefAtrito, estadosIniciais, 
+    function PenduloParams(; comprimento, massa, coefAtrito, estadosIniciais)
+        new(comprimento, massa, coefAtrito, estadosIniciais, 
             ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"), 
             "Pêndulo Simples")
     end
 end
 
 function pendulo!(dx, x, p, t)
-    g, L, m, b = p.gravidade, p.comprimento, p.massa, p.coefAtrito
+    g, L, m, b = 9.81, p.comprimento, p.massa, p.coefAtrito
 
     x1, x2 = x[1], x[2]
 
@@ -57,7 +56,7 @@ function pendulo!(dx, x, p, t)
     dx[2] = -(g/L)*sin(x1) - (b/(m*L^2))*x2 
 end
 function penduloPID!(dx, x, p::PIDparams, t)
-    g, L = p.fisica.gravidade, p.fisica.comprimento
+    g, L = 9.81, p.fisica.comprimento
     m, b = p.fisica.massa, p.fisica.coefAtrito
     
     I = m*L^2
