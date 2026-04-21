@@ -1,20 +1,29 @@
+# Controle/Ferramentas/ResoluçãoEDO.jl
+
 using OrdinaryDiffEq
 
 """
+    resolverSistema(sistema, x0, intervaloTempo, p; resolucao) -> solucao
+
     Resolve uma EDO genérica e retorna o objeto de solução.
-    - sistema: A função que define dx/dt (a dinâmica).
-    - x0: Vetor de condições iniciais.
-    - tspan: Intervalo de tempo
-    - p: Parâmetros do sistema (opcional).
-    - resolucao: Forçar o salvamento de pontos a cada 't' tempo (padrão->0.01s).
+
+    Argumentos:
+        - sistema        : função f(dx,x,p,t) OU struct callable (ex: MalhaFechada)
+        - x0             : vetor de condições iniciais
+        - intervaloTempo : tupla (t_inicial, t_final)
+        - p              : parâmetros externos — ignorado se sistema for callable struct
+        - resolucao      : intervalo de salvamento dos pontos (padrão 0.01s)
 """
-function resolverSistema(sistema, condicoesIniciais, intervaloTempo, p=nothing; 
-                         resolucao=0.01)
+function resolverSistema(sistema, x0, intervaloTempo, p=nothing; resolucao=0.01)
+    x0 = x0 isa Vector{Float64} ? x0 : collect(Float64, x0)
 
-    condicoesIniciais = collect(values(condicoesIniciais))
+    problema = if p === nothing
+        ODEProblem(sistema, x0, intervaloTempo)
+    else
+        ODEProblem(sistema, x0, intervaloTempo, p)
+    end
 
-    problema = ODEProblem(sistema, condicoesIniciais, intervaloTempo, p)
-    solucao  = solve(problema, saveat=resolucao)
+    solucao = solve(problema, saveat=resolucao)
 
     return solucao
 end

@@ -24,6 +24,12 @@
       "description": "## Adição de processamento paralelo na CPU e GPU\n\n- [x] Criação de templates para uso da GPU.\n- [x] Criação de templates para uso dos núcleos da CPU.\n- [ ] Implementação de funções que usam esses recursos.",
       "columnId": "column-done",
       "color": "#80808000"
+    },
+    "EjI8EQ0FZm8OAXYY0fhxO": {
+      "id": "EjI8EQ0FZm8OAXYY0fhxO",
+      "description": "## Controladores\n\n- [ ] Criação de função de análise de performance de controlador",
+      "columnId": "column-done",
+      "color": "#80808000"
     }
   },
   "columns": [
@@ -53,7 +59,8 @@
       "id": "column-done",
       "title": "FERRAMENTAS",
       "tasksIds": [
-        "aEQf1Mzlf8t2wePDTACeT"
+        "aEQf1Mzlf8t2wePDTACeT",
+        "EjI8EQ0FZm8OAXYY0fhxO"
       ]
     }
   ]

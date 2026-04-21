@@ -1,9 +1,10 @@
 using ProgressMeter
-using Plots
-include("../Métodos Controle/PID.jl")
+import Plots
+
+include("../Abstrações/Interfaces.jl")
 
 #=
-2. SISTEMA DINÂMICO DE PÊNDULO SIMPLES-----------------------------------------------------------------
+# PÊNDULO SIMPLES-----------------------------------------------------------------
     2.1. DESCRIÇÃO:
         Consiste em uma massa 'm' suspensa por uma haste rígida (ou fio) de 
         comprimento 'L', sob a influência da gravidade 'g'. O movimento é 
@@ -32,92 +33,84 @@ include("../Métodos Controle/PID.jl")
         - b: Coeficiente de atrito rotacional [N.m.s/rad] (opcional)
 =#
 
-struct PenduloParams
-    comprimento     ::Float64
-    massa           ::Float64
-    coefAtrito      ::Float64
-    estadosIniciais ::Vector{Float64}
-    variaveisEstado ::Tuple{String, String}
-    nomeSistema     ::String
-    
-    function PenduloParams(; comprimento, massa, coefAtrito, estadosIniciais)
-        new(comprimento, massa, coefAtrito, estadosIniciais, 
-            ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"), 
-            "Pêndulo Simples")
+# =========================================================================
+# STRUCT DA PLANTA
+    struct Pendulo <: SistemaPlanta
+        comprimento     ::Float64
+        massa           ::Float64
+        coefAtrito      ::Float64
+        estadosIniciais ::Vector{Float64}
+        dim             ::Int
+        dinamica!       ::Function               
+        variaveisEstado ::Tuple{String, String}
+        nomeSistema     ::String
+        
+        function Pendulo(; comprimento, massa, coefAtrito, estadosIniciais)
+            new(comprimento, massa, coefAtrito, estadosIniciais,
+                2,
+                pendulo!,                        # ← aponta para a função abaixo
+                ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"),
+                "Pêndulo Simples")
+        end
     end
-end
+# =========================================================================
 
-function pendulo!(dx, x, p, t)
-    g, L, m, b = 9.81, p.comprimento, p.massa, p.coefAtrito
+# =========================================================================
+# DINÂMICA DA PLANTA 
+    """
+        Dinâmica pura do pêndulo. O controle `u` é uma entrada externa opcional —
+        por padrão zero (malha aberta).
+    """
+    function pendulo!(dx, x, p::Pendulo, t; u=0.0)   
+        g = 9.81
+        L, m, b = p.comprimento, p.massa, p.coefAtrito
+        I = m * L^2
 
-    x1, x2 = x[1], x[2]
-
-    dx[1] = x2  
-    dx[2] = -(g/L)*sin(x1) - (b/(m*L^2))*x2 
-end
-function penduloPID!(dx, x, p::PIDparams, t)
-    g, L = 9.81, p.fisica.comprimento
-    m, b = p.fisica.massa, p.fisica.coefAtrito
-    
-    I = m*L^2
-
-    x1, x2 = x[1], x[2]
-
-    u = calcularPID(x, p)
-
-    dx[1] = x2  
-    dx[2] = (-m*g*L*sin(x1) - b*x2 + u)/I
-    dx[3] = p.referencia - x1
-end
-
-function calcularPID(x, p::PIDparams)
-    θ             = x[1]
-    ω             = x[2]
-    integral_erro = x[3] 
-    
-    erro          = p.referencia - θ
-    derivada_erro = -ω 
-
-    return (p.Kp * erro) + (p.Ki * integral_erro) + (p.Kd * derivada_erro)
-end
-
-function gerarAnimacao(solucao, p::PenduloParams, fps)
-    gr() 
-    println("Iniciando animação do Pêndulo...")
-
-    duracao = solucao.t[end]
-    instantes_de_tempo = 0 : (1/fps) : duracao
-    
-    # 1. Criamos o objeto de animação vazio
-    anim = Plots.Animation()
-    
-    println("Iniciando renderização do Pêndulo...")
-
-    @showprogress "Progresso: " for t in instantes_de_tempo
-        # Ângulo atual (interpolação contínua)
-        θ = solucao(t)[1]
-        L = p.comprimento
-        
-        # Trigonometria para posição da massa
-        x_massa =  L * sin(θ)
-        y_massa = -L * cos(θ)
-
-        plot = Plots.plot([0, x_massa], [0, y_massa], 
-                          lw=3, color=:black, label="", 
-                          xlim=(-2, 2), ylim=(-1.2, 2),
-                          aspect_ratio=:equal, title="Tempo: $(round(t, digits=2))s")
-        
-        scatter!(plot, [x_massa], [y_massa], 
-                 markersize=10, color=:red, label="")
-        
-        Plots.frame(anim, plot)
+        dx[1] = x[2]
+        dx[2] = (-m*g*L*sin(x[1]) - b*x[2] + u) / I
     end
-    
-    # Configuração do caminho e salvamento
-    caminho_video = "Controle/Animações/pendulo.mp4"
-    mkpath(dirname(caminho_video))
-    
-    println("\nFinalizando arquivo de vídeo...")
-    mp4(anim, caminho_video, fps = fps)
-    println("Sucesso! Vídeo salvo em: $caminho_video")
-end
+# =========================================================================
+
+# =========================================================================
+# ANIMAÇÃO 
+    function gerarAnimacao(solucao, p::Pendulo, fps)
+        Plots.gr()
+        println("Iniciando animação do Pêndulo...")
+
+        duracao = solucao.t[end]
+        instantes_de_tempo = 0 : (1/fps) : duracao
+        
+        # 1. Criamos o objeto de animação vazio
+        anim = Plots.Animation()
+        
+        println("Iniciando renderização do Pêndulo...")
+
+        @showprogress "Progresso: " for t in instantes_de_tempo
+            # Ângulo atual (interpolação contínua)
+            θ = solucao(t)[1]
+            L = p.comprimento
+            
+            # Trigonometria para posição da massa
+            x_massa =  L * sin(θ)
+            y_massa = -L * cos(θ)
+
+            plot = Plots.plot([0, x_massa], [0, y_massa], 
+                            lw=3, color=:black, label="", 
+                            xlim=(-2, 2), ylim=(-1.2, 2),
+                            aspect_ratio=:equal, title="Tempo: $(round(t, digits=2))s")
+            
+            Plots.scatter!(plot, [x_massa], [y_massa], 
+                    markersize=10, color=:red, label="")
+            
+            Plots.frame(anim, plot)
+        end
+        
+        # Configuração do caminho e salvamento
+        caminho_video = "Controle/Animações/pendulo.mp4"
+        mkpath(dirname(caminho_video))
+        
+        println("\nFinalizando arquivo de vídeo...")
+        Plots.mp4(anim, caminho_video, fps = fps)
+        println("Sucesso! Vídeo salvo em: $caminho_video")
+    end
+# =========================================================================

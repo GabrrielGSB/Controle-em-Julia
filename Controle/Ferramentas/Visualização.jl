@@ -277,3 +277,120 @@ function plotarRetratoFase(solucoes::AbstractVector;
     fig = plot(traces, layout)
     display(fig)
 end
+
+function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
+                                   limiteEixo         = 3.0,
+                                   densidadeSetas     = 18,
+                                   raiosIniciais      = [0.5, 1.5, 2.5],
+                                   trajetoriasPorAnel = 10,
+                                   tempoMaximo        = 20.0,
+                                   titulo             = "Retrato de Fase - Campo Vetorial")
+
+    traces = GenericTrace[]
+    escala = (2*limiteEixo / densidadeSetas) * 0.55
+
+    # Adaptador: chama dinamica no formato DiffEq para obter (dx1, dx2)
+    function avaliar(x1, x2)
+        dx = zeros(2)
+        dinamica(dx, [x1, x2], parametros, 0.0)
+        return dx[1], dx[2]
+    end
+
+    # --- Campo Vetorial ---
+    xs = range(-limiteEixo, limiteEixo, length=densidadeSetas)
+    ys = range(-limiteEixo, limiteEixo, length=densidadeSetas)
+
+    for x in xs, y in ys
+        dx, dy = avaliar(x, y)
+        mag = sqrt(dx^2 + dy^2)
+        mag < 1e-8 && continue
+
+        px = x + (dx/mag) * escala
+        py = y + (dy/mag) * escala
+
+        push!(traces, scatter(
+            x=[x, px], y=[y, py],
+            mode="lines",
+            line=attr(width=1.2, color="rgba(100,130,220,0.5)"),
+            showlegend=false, hoverinfo="skip"
+        ))
+
+        angulo_plotly = 90.0 - atan(dy, dx) * 180/π
+        push!(traces, scatter(
+            x=[px], y=[py],
+            mode="markers",
+            marker=attr(symbol="arrow", size=7, angle=angulo_plotly,
+                        color="rgba(100,130,220,0.7)",
+                        line=attr(width=1, color="rgba(100,130,220,0.7)")),
+            showlegend=false, hoverinfo="skip"
+        ))
+    end
+
+    push!(traces, scatter(x=[nothing], y=[nothing], mode="lines",
+        line=attr(color="rgba(100,130,220,0.7)"), name="Campo vetorial"))
+
+    # --- Trajetórias usando resolverSistema ---
+    paleta = ["#2A5FCA","#1A8C60","#D05030","#8050C0","#1890A0","#C04060",
+              "#5F8FD0","#40A860","#E07050","#A070D0","#40A0B8","#D06080"]
+
+    idxCor = 1
+    for raio in raiosIniciais
+        angulos = range(0, 2π, length=trajetoriasPorAnel+1)[1:end-1]
+        for a in angulos
+            x0 = [raio * cos(a), raio * sin(a)]
+
+            solucao = resolverSistema(dinamica, x0, (0.0, tempoMaximo), parametros)
+
+            cor = paleta[mod1(idxCor, length(paleta))]
+            push!(traces, scatter(
+                x=[u[1] for u in solucao.u],
+                y=[u[2] for u in solucao.u],
+                mode="lines",
+                line=attr(width=1.8, color=cor),
+                legendgroup="traj",
+                showlegend=(idxCor == 1),
+                name="Trajetórias",
+                text=["t = $(round(t, digits=2))" for t in solucao.t],
+                hovertemplate="x₁ = %{x:.3f}<br>x₂ = %{y:.3f}<br>%{text}<extra></extra>"
+            ))
+            push!(traces, scatter(
+                x=[solucao.u[1][1]], y=[solucao.u[1][2]],
+                mode="markers",
+                marker=attr(size=5, color=cor, symbol="circle"),
+                legendgroup="traj",
+                showlegend=false, hoverinfo="skip"
+            ))
+            idxCor += 1
+        end
+    end
+
+    # Equilíbrio na origem
+    push!(traces, scatter(
+        x=[0.0], y=[0.0], mode="markers",
+        marker=attr(size=10, color="red", symbol="x", line=attr(width=2, color="red")),
+        name="Equilíbrio"
+    ))
+
+    layout = Layout(
+        title_text=titulo, title_x=0.5,
+        xaxis=attr(
+            title="x₁",
+            range=[-limiteEixo, limiteEixo],
+            zeroline=true, zerolinecolor="#aaa", gridcolor="#ddd",
+            tickmode="linear",
+            dtick=round(limiteEixo/3, digits=1),
+            showticklabels=true
+        ),
+        yaxis=attr(
+            title="x₂",
+            range=[-limiteEixo, limiteEixo],
+            zeroline=true, zerolinecolor="#ddd", gridcolor="#ddd",
+            tickmode="linear",
+            dtick=round(limiteEixo/3, digits=1),
+            showticklabels=true
+        ),
+        width=700, height=700, plot_bgcolor="#f8f7f4", showlegend=true
+    )
+
+    display(plot(traces, layout))
+end
