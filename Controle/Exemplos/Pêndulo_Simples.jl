@@ -7,7 +7,7 @@
 
 # =========================================================
 # PARÂMETROS FÍSICOS
-    parametros = PenduloParams(
+    parametros = Pendulo(
         comprimento     = 1.0,   # L [m]
         massa           = 1.0,   # m [kg]
         coefAtrito      = 0.6,   # b [N.m.s/rad]
