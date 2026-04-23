@@ -11,6 +11,7 @@
 #   metricas = analisarPerformance(solucao, u_historico, referencia=1.0, idx_estado=3)
 
 using Statistics
+using Printf
 
 # =========================================================================
 # STRUCT DE RESULTADOS
@@ -79,7 +80,6 @@ end
 
 # =========================================================================
 # FUNÇÃO PRINCIPAL
-# =========================================================================
 
 """
     analisarPerformance(solucao; referencia, idx_estado, u_historico, banda) -> Metricas
@@ -105,11 +105,13 @@ function analisarPerformance(solucao;
                               u_historico ::Union{Vector{Float64}, Nothing} = nothing,
                               banda       ::Float64 = 0.02)
 
-    t  = solucao.t
-    y  = [u[idx_estado] for u in solucao.u]
-    ref = Float64(referencia)
-    dt  = diff(t)  
-    n   = length(t)
+    t    = solucao.t
+    y    = [u[idx_estado] for u in solucao.u]
+    ref  = Float64(referencia)
+    dt   = diff(t)  
+    n    = length(t)
+    x0   = y[1]
+    span = ref - x0
 
     # === ERRO ===
     e_t     = ref .- y     
@@ -123,29 +125,13 @@ function analisarPerformance(solucao;
     ITSE = _integrar(t .* e_t_sq,  t)
 
     # === MÉTRICAS DE RASTREAMENTO ===
-    y_final = mean( y[ max(1, end-round(Int, 0.1*n)) : end ] )  # Média dos últimos 10%
-    erro_regime = ref - y_final
-
-    # Sobressinal: só faz sentido se o sistema "passa" da referência
-    sobressinal_pct = _calcularSobressinal(y, ref)
-
-    # Tempo de subida 
-    x0 = y[1]
-    span = ref - x0
-    tempo_subida = _calcularTempoSubida(t, y, x0, ref, span)
-
-    # Tempo de pico
-    idx_pico = argmax(sign(span) .* y)
-    tempo_pico = t[idx_pico]
-
-    # Tempo de assentamento (±banda% da referência)
     tempo_assentamento = _calcularTempoAssentamento(t, y, ref, banda)
-
-    # === NÚMERO DE OSCILAÇÕES (cruzamentos pela referência) ===
-    num_oscilacoes = _contarOscilacoes(y, ref)
-
-    # === TAXA DE DECAIMENTO (ajuste exponencial no envelope) ===
-    decaimento = _estimarDecaimento(t, e_t_abs)
+    sobressinal_pct    = _calcularSobressinal(y, ref)
+    num_oscilacoes     = _contarOscilacoes(y, ref)
+    tempo_subida       = _calcularTempoSubida(t, y, x0, ref, span)
+    erro_regime        = _calcularErroRegime(y, ref)
+    tempo_pico         = _calcularTempoPico(t, y, span)
+    decaimento         = _estimarDecaimento(t, e_t_abs)
 
     # === ESFORÇO DE CONTROLE ===
     energia_controle = nothing
@@ -155,9 +141,11 @@ function analisarPerformance(solucao;
 
     if u_historico !== nothing
         @assert length(u_historico) == n "u_historico deve ter o mesmo comprimento que solucao.t"
+
         u = u_historico
-        energia_controle = _integrar(u .^ 2, t)
         du = diff(u) ./ dt
+
+        energia_controle = _integrar(u .^ 2, t)
         variacao_total   = _integrar(abs.(du), t[1:end-1])
         u_max            = maximum(abs.(u))
         u_rms            = sqrt(_integrar(u .^ 2, t) / t[end])
@@ -190,12 +178,12 @@ end
 """
     compararControladores(solucoes, nomes; referencia, idx_estado, ...) -> Vector{Metricas}
 
-Analisa e compara múltiplos controladores lado a lado.
+    Analisa e compara múltiplos controladores lado a lado.
 
-Exemplo:
-    m_pid = analisarPerformance(sol_pid, referencia=1.0)
-    m_lqr = analisarPerformance(sol_lqr, referencia=1.0)
-    compararControladores([sol_pid, sol_lqr], ["PID", "LQR"], referencia=1.0)
+    Exemplo:
+        m_pid = analisarPerformance(sol_pid, referencia=1.0)
+        m_lqr = analisarPerformance(sol_lqr, referencia=1.0)
+        compararControladores([sol_pid, sol_lqr], ["PID", "LQR"], referencia=1.0)
 """
 function compararControladores(solucoes::AbstractVector,
                                 nomes::Vector{String};
@@ -212,7 +200,7 @@ end
 """
     imprimirRelatorio(m::Metricas; nome)
 
-Imprime um relatório formatado no terminal com todas as métricas disponíveis.
+    Imprime um relatório formatado no terminal com todas as métricas disponíveis.
 """
 function imprimirRelatorio(m::Metricas; nome::String = "Controlador")
     linha = "="^56
@@ -256,9 +244,7 @@ function imprimirRelatorio(m::Metricas; nome::String = "Controlador")
 end
 
 """
-    imprimirComparacao(metricas, nomes)
-
-Imprime uma tabela comparativa de múltiplos controladores.
+    Imprime uma tabela comparativa de múltiplos controladores.
 """
 function imprimirComparacao(metricas::Vector{Metricas}, nomes::Vector{String})
     println("\n", "="^80)
@@ -330,7 +316,15 @@ end
 
 # =========================================================================
 # FUNÇÕES AUXILIARES INTERNAS
-    using Printf
+
+    function _calcularErroRegime(y::Vector{Float64}, ref::Float64)
+        n = length(y)
+        
+        janela_final = y[max(1, end-round(Int, 0.1 * n)):end]
+        y_final = mean(janela_final)
+        
+        return ref - y_final
+    end
 
     # Porcentagem do sobressinal em relação a referência
     function _calcularSobressinal(y::Vector{Float64}, ref::Float64)
@@ -382,6 +376,11 @@ end
         end
         (t_low === nothing || t_high === nothing) && return nothing
         return t_high - t_low
+    end
+
+    function _calcularTempoPico(t::Vector{Float64}, y::Vector{Float64}, span::Float64)
+        idx_pico = argmax(sign(span) .* y)
+        return t[idx_pico]
     end
 
     # Tempo de assentamento: último instante em que |e| > banda * |ref|

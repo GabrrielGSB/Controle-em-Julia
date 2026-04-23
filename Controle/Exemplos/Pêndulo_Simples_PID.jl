@@ -5,6 +5,7 @@ include("../controladores/PID.jl")
 include("../Abstrações/MalhaFechada.jl")
 include("../Ferramentas/ResoluçãoEDO.jl")
 include("../Ferramentas/Visualização.jl")
+include("../Ferramentas/AnálisePerformance.jl")
 
 # =========================================================================
 # 1. Planta
@@ -41,4 +42,7 @@ solucao = resolverSistema(sys, x0, (0.0, 10.0))
 # =========================================================================
 
 plotarNoTempo(solucao, titulo="PID no Pêndulo Simples", estados=1:2)
-gerarAnimacao(solucao, pendulo, 30)
+
+m   = analisarPerformance(solucao, referencia=π, idx_estado=1)
+imprimirRelatorio(m)
+# gerarAnimacao(solucao, pendulo, 30)
