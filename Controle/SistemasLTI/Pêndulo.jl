@@ -73,44 +73,77 @@ include("../Abstrações/Interfaces.jl")
 
 # =========================================================================
 # ANIMAÇÃO 
-    function gerarAnimacao(solucao, p::Pendulo, fps)
+    function gerarAnimacao(solucao_raw, p::Pendulo, fps;
+                           mostrar_controle::Bool = false)
         Plots.gr()
         println("Iniciando animação do Pêndulo...")
 
-        duracao = solucao.t[end]
+        # Desempacota dependendo do tipo de retorno de resolverSistema
+        if mostrar_controle
+            @assert solucao_raw isa NamedTuple "Para mostrar_controle=true, passe o retorno completo de resolverSistema(..., salvar_controle=true)"
+            solucao     = solucao_raw.solucao
+            t_u         = solucao_raw.t_u
+            u_historico = solucao_raw.u
+            u_max       = maximum(abs(v[1]) for v in u_historico)
+        else
+            solucao = solucao_raw isa NamedTuple ? solucao_raw.solucao : solucao_raw
+        end
+
+        seta_max           = 0.5
+        duracao            = solucao.t[end]
         instantes_de_tempo = 0 : (1/fps) : duracao
-        
-        # 1. Criamos o objeto de animação vazio
-        anim = Plots.Animation()
-        
+        anim               = Plots.Animation()
+
         println("Iniciando renderização do Pêndulo...")
 
         @showprogress "Progresso: " for t in instantes_de_tempo
-            # Ângulo atual (interpolação contínua)
             θ = solucao(t)[1]
+            ω = solucao(t)[2]
             L = p.comprimento
-            
-            # Trigonometria para posição da massa
+
             x_massa =  L * sin(θ)
             y_massa = -L * cos(θ)
 
-            plot = Plots.plot([0, x_massa], [0, y_massa], 
-                            lw=3, color=:black, label="", 
-                            xlim=(-2, 2), ylim=(-1.2, 2),
-                            aspect_ratio=:equal, title="Tempo: $(round(t, digits=2))s")
-            
-            Plots.scatter!(plot, [x_massa], [y_massa], 
-                    markersize=10, color=:red, label="")
-            
-            Plots.frame(anim, plot)
+            plt = Plots.plot([0, x_massa], [0, y_massa],
+                            lw=3, color=:black, label="",
+                            xlim=(-2, 2), ylim=(-1.5, 1.5),
+                            aspect_ratio=:equal,
+                            title="Tempo: $(round(t, digits=2))s",
+                            legend=:topright)
+
+            Plots.scatter!(plt, [x_massa], [y_massa],
+                        markersize=10, color=:red, label="Massa")
+
+            if mostrar_controle
+                idx = clamp(searchsortedlast(t_u, t), 1, length(u_historico))
+                u   = u_historico[idx][1]
+
+                tang_x  =  cos(θ)
+                tang_y  =  sin(θ)
+                escala  = (abs(u) / (u_max + 1e-10)) * seta_max
+                seta_dx = sign(u) * tang_x * escala
+                seta_dy = sign(u) * tang_y * escala
+
+                Plots.quiver!(plt,
+                            [x_massa], [y_massa],
+                            quiver=([seta_dx], [seta_dy]),
+                            color=:blue, lw=2.5, label="u(t)")
+
+                info = "u  = $(round(u,          digits=2)) N·m\n" *
+                    "θ  = $(round(rad2deg(θ), digits=1)) °\n"   *
+                    "ω  = $(round(ω,          digits=3)) rad/s"
+
+                Plots.annotate!(plt, -1.9, 1.4,
+                                Plots.text(info, :left, 8, :darkblue))
+            end
+
+            Plots.frame(anim, plt)
         end
-        
-        # Configuração do caminho e salvamento
+
         caminho_video = "Controle/Animações/pendulo.mp4"
         mkpath(dirname(caminho_video))
-        
         println("\nFinalizando arquivo de vídeo...")
-        Plots.mp4(anim, caminho_video, fps = fps)
+        Plots.mp4(anim, caminho_video, fps=fps)
         println("Sucesso! Vídeo salvo em: $caminho_video")
     end
 # =========================================================================

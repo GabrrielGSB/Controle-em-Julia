@@ -1,50 +1,100 @@
 using PlotlyJS 
 
-function plotarNoTempo(solucao; 
-                       titulo  = "Análise Temporal do Sistema", 
-                       estados = 1:length(solucao.u[1])) 
-    
-    t = solucao.t
-    num_graficos = length(estados)
-    
-    # 1. Cria os títulos dos subplots dinamicamente 
-    titulos_subplots = reshape(["Evolução de x$i" for i in estados], 1, num_graficos)
-    
-    # 2. Cria o layout de subplots dinâmico
-    fig = make_subplots(
-        rows=num_graficos, cols=1, 
-        shared_xaxes=true,      
-        vertical_spacing=0.15 / max(1, (num_graficos - 1)),
-        subplot_titles=titulos_subplots
-    )
-    
-    # 3. Adiciona as linhas dinamicamente usando um Loop
-    for (linha_atual, estado_idx) in enumerate(estados)
-        x_dados = [u[estado_idx] for u in solucao.u]
-        
-        trace = scatter(
-            x=t, 
-            y=x_dados, 
-            mode="lines", 
-            name="x$estado_idx", 
-            line=attr(width=2)
-        )
-        add_trace!(fig, trace, row=linha_atual, col=1)
+"""
+    Plota estados e/ou sinal de controle ao longo do tempo.
+
+    Argumentos:
+        - resultado        : Solução do ODE *ou* NamedTuple com campos (solucao, t_u, u)
+                             retornado por resolverSistema(salvar_controle=true)
+        - titulo           : Título do gráfico
+        - estados          : Índices dos estados a plotar. `nothing` oculta os estados.
+        - mostrar_controle : Se true, adiciona subplots do sinal de controle u(t).
+                             Ignorado se resultado não contiver histórico de controle.
+"""
+function plotarNoTempo(resultado;
+                       titulo           = "Análise Temporal do Sistema",
+                       estados          = nothing,
+                       mostrar_controle = false)
+
+    # ── 1. Desempacota resultado (NamedTuple ou solução direta) ──────────────
+    tem_controle = resultado isa NamedTuple         &&
+                   hasproperty(resultado, :solucao) &&
+                   hasproperty(resultado, :t_u)     &&
+                   hasproperty(resultado, :u)
+
+    solucao    = tem_controle ? resultado.solucao : resultado
+    t_estados  = solucao.t
+
+    # Estados padrão: todos, caso não especificado e não foram ocultados
+    indices_estados = estados === nothing ? (1:length(solucao.u[1])) :
+                      estados == 0        ? Int[]                    : 
+                     (estados isa Int ? [estados] : collect(estados))
+
+    # ── 2. Valida pedido de controle ─────────────────────────────────────────
+    if mostrar_controle && !tem_controle
+        error("Histórico de controle não encontrado. " *
+              "Rode resolverSistema com salvar_controle=true.")
     end
-    
-    # 4. Configuração dinâmica do layout
-    config_layout = Dict(
-        :title_text => titulo, 
-        :title_x => 0.5, 
-        :height => max(400, 250 * num_graficos), 
-        :width => 800,
-        :showlegend => true
+
+    # ── 3. Monta lista de subplots ────────────────────────────────────────────
+    #   Cada entrada: (tipo, índice, título)
+    #   tipo = :estado ou :controle
+    subplots = Tuple{Symbol, Int, String}[]
+
+    for i in indices_estados
+        push!(subplots, (:estado, i, "x$i"))
+    end
+
+    if mostrar_controle && tem_controle
+        dim_u = length(resultado.u[1])
+        for i in 1:dim_u
+            push!(subplots, (:controle, i, "u$i"))
+        end
+    end
+
+    num_graficos = length(subplots)
+    num_graficos == 0 && error("Nenhum estado ou controle selecionado para plotar.")
+
+    # ── 4. Cria a figura ──────────────────────────────────────────────────────
+    titulos_subplots = reshape([sp[3] for sp in subplots], 1, num_graficos)
+
+    fig = make_subplots(
+        rows              = num_graficos,
+        cols              = 1,
+        shared_xaxes      = true,
+        vertical_spacing  = 0.15 / max(1, num_graficos - 1),
+        subplot_titles    = titulos_subplots
     )
-    
-    chave_eixo_x = Symbol("xaxis$(num_graficos)_title")
-    config_layout[chave_eixo_x] = "Tempo (s)"
-    
-    relayout!(fig; config_layout...)
+
+    # ── 5. Preenche cada subplot ──────────────────────────────────────────────
+    for (linha, (tipo, idx, nome)) in enumerate(subplots)
+        if tipo == :estado
+            dados = [u[idx] for u in solucao.u]
+            t_plot = t_estados
+            cor = attr(width=2)
+        else  # :controle
+            dados  = [vetor[idx] for vetor in resultado.u]
+            t_plot = resultado.t_u
+            cor = attr(width=2, dash="dot")
+        end
+
+        add_trace!(fig,
+            scatter(x=t_plot, y=dados, mode="lines", name=nome, line=cor),
+            row=linha, col=1)
+    end
+
+    # ── 6. Layout ─────────────────────────────────────────────────────────────
+    config = Dict(
+        :title_text  => titulo,
+        :title_x     => 0.5,
+        :height      => max(400, 250 * num_graficos),
+        :width       => 800,
+        :showlegend  => true,
+        :hovermode   => "x unified"
+    )
+    config[Symbol("xaxis$(num_graficos)_title")] = "Tempo (s)"
+
+    relayout!(fig; config...)
     display(fig)
 end
 

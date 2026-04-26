@@ -1,48 +1,41 @@
-# Controle/Exemplos/PID_no_pendulo_simples.jl
+# =========================================================
+# INCLUDES
+    include("../SistemasLTI/Pêndulo.jl")
+    include("../controladores/PID.jl")
+    include("../Abstrações/MalhaFechada.jl")
+    include("../Ferramentas/ResoluçãoEDO.jl")
+    include("../Ferramentas/Visualização.jl")
+    include("../Ferramentas/AnálisePerformance.jl")
+# =========================================================
 
-include("../SistemasLTI/Pêndulo.jl")
-include("../controladores/PID.jl")
-include("../Abstrações/MalhaFechada.jl")
-include("../Ferramentas/ResoluçãoEDO.jl")
-include("../Ferramentas/Visualização.jl")
-include("../Ferramentas/AnálisePerformance.jl")
+# =========================================================
+# PARÂMETROS FÍSICOS E DE CONTROLE
+    pendulo = Pendulo(comprimento     = 1.0,
+                      massa           = 10.0,
+                      coefAtrito      = 0.1,
+                      estadosIniciais = [1.0, 0.0])
 
-# =========================================================================
-# 1. Planta
-# =========================================================================
-
-pendulo = Pendulo(comprimento     = 1.0,
-                  massa           = 10.0,
-                  coefAtrito      = 0.1,
-                  estadosIniciais = [1.0, 0.0])
-
-# =========================================================================
-# 2. Controlador
-# =========================================================================
-
-pid = PID(Kp = 200.0,
+    pid = PID(Kp = 200.0,
           Ki = 20.0,
           Kd = 10.0)
+# =========================================================
 
-# =========================================================================
-# 3. Malha Fechada
-# =========================================================================
+# =========================================================
+# SIMULAÇÃO
+    sys = conectar(pendulo, pid, π)      
+    x0  = condicoesIniciais(sys, [1.0, 0.0])   
+    sol = resolverSistema(sys, x0, (0.0, 10.0),
+                        resolucao=0.01,
+                        salvar_controle=true)
+# =========================================================
 
-sys = conectar(pendulo, pid, π)      
+# =========================================================
+# VISUALIZAÇÃO E ANÁLISE
+    plotarNoTempo(sol, titulo="PID no Pêndulo Simples", 
+                  estados=(1), 
+                  mostrar_controle=true)
 
-# =========================================================================
-# 4. Simulação
-# =========================================================================
+    # m = analisarPerformance(sol, referencia=π, idx_estado=1); imprimirRelatorio(m)
 
-x0      = condicoesIniciais(sys, [1.0, 0.0])   
-solucao = resolverSistema(sys, x0, (0.0, 10.0))
-
-# =========================================================================
-# 5. Visualização
-# =========================================================================
-
-plotarNoTempo(solucao, titulo="PID no Pêndulo Simples", estados=1:2)
-
-m   = analisarPerformance(solucao, referencia=π, idx_estado=1)
-imprimirRelatorio(m)
-# gerarAnimacao(solucao, pendulo, 30)
+    gerarAnimacao(sol, pendulo, 30, mostrar_controle=true)
+# =========================================================

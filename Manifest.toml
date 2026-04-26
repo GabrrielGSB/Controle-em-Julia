@@ -2,7 +2,7 @@
 
 julia_version = "1.10.11"
 manifest_format = "2.0"
-project_hash = "2e6d2938145ce716d42877a8fb3c25427b339709"
+project_hash = "fe719c99ec8a3ffa113b204bb75ffd84f72a1226"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "f7304359109c768cf32dc5fa2d371565bb63b68a"
@@ -432,6 +432,18 @@ version = "6.213.0"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[[deps.DiffEqCallbacks]]
+deps = ["ConcreteStructs", "DataStructures", "DiffEqBase", "DifferentiationInterface", "LinearAlgebra", "Markdown", "PrecompileTools", "RecipesBase", "RecursiveArrayTools", "SciMLBase", "StaticArraysCore"]
+git-tree-sha1 = "522a0fae4cadc98f20cfcc8001c1d4a906c5a3cd"
+uuid = "459566f4-90b8-5000-8ac3-15dfb0a30def"
+version = "4.16.0"
+
+    [deps.DiffEqCallbacks.extensions]
+    DiffEqCallbacksFunctorsExt = "Functors"
+
+    [deps.DiffEqCallbacks.weakdeps]
+    Functors = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
 
 [[deps.DiffResults]]
 deps = ["StaticArraysCore"]

@@ -1,5 +1,5 @@
 # =========================================================
-# RE-APROVEITAMENTO DE CÓDIGO
+# INCLUDES
     include("../SistemasLTI/Pêndulo.jl")
     include("../Ferramentas/ResoluçãoEDO.jl")
     include("../Ferramentas/Visualização.jl")
@@ -16,7 +16,7 @@
 # =========================================================
 
 # =========================================================
-# SIMULAÇÃO (malha aberta)
+# SIMULAÇÃO
     intervaloTempo = (0.0, 10.0)
 
     solucao = resolverSistema(pendulo!,
@@ -26,7 +26,7 @@
 # =========================================================
 
 # =========================================================
-# VISUALIZAÇÃO 
+# VISUALIZAÇÃO E ANÁLISE
     plotarNoTempo(solucao,
                   titulo  = "Pêndulo Simples — Evolução Temporal",
                   estados = 1:2)
@@ -42,11 +42,7 @@
                               trajetoriasPorAnel = 1,
                               tempoMaximo        = 20.0,
                               titulo             = "Retrato de Fase - Campo Vetorial")
-# =========================================================
-
-# =========================================================
-# ANIMAÇÃO
-
-   gerarAnimacao(solucao, parametros, 30)    
+   
+    gerarAnimacao(solucao, parametros, 30)    
 
 # =========================================================
