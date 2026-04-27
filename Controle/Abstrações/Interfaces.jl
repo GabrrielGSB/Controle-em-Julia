@@ -4,25 +4,27 @@
 # TIPOS ABSTRATOS
     """
         Supertipo de toda planta dinâmica do framework.
-        Todo struct que represente um sistema físico deve herdar deste tipo.
+        Todo o struct que represente um sistema físico deve herdar deste tipo.
 
         Exemplo:
-            struct PenduloParams <: SistemaPlanta ... end
+            struct Pendulo <: Sistema ... end
     """
-    abstract type SistemaPlanta end
+    abstract type Planta end
 
     """
         Supertipo de todo controlador do framework.
         Todo struct que represente uma lei de controle deve herdar deste tipo.
 
         Exemplo:
-            struct PID <: SistemaControlador ... end
+            struct PID <: Controlador ... end
     """
-    abstract type SistemaControlador end
+    abstract type Controlador end
 # =========================================================================
 
 # =========================================================================
-# INTERFACE DO CONTROLADOR — funções que todo controlador deve implementar
+# INTERFACE DO CONTROLADOR 
+    # funções que todo controlador deve implementar
+
     """
         calcularSaida(controlador, x_planta, x_ctrl, ref, t) -> u
 
@@ -56,5 +58,5 @@
             - LQR, SOS  → 0  (lei estática, sem memória)
             - LQG       → n  (dimensão do estado estimado)
     """
-    function dimEstado end
+    function numEstadosControle end
 # =========================================================================

@@ -12,9 +12,9 @@ include("Interfaces.jl")
 
         Criado via conectar() — não instanciar diretamente.
     """
-    struct MalhaFechada{P <: SistemaPlanta, C <: SistemaControlador}
-        planta      ::P
-        controlador ::C
+    struct MalhaFechada
+        planta      ::Planta
+        controlador ::Controlador
         referencia  ::Vector{Float64}
         dim_planta  ::Int
         dim_ctrl    ::Int
@@ -22,7 +22,7 @@ include("Interfaces.jl")
 # =========================================================================
 
 # =========================================================================
-# CONSTRUTOR — conectar()
+# CONSTRUTOR
     """
         conectar(planta, controlador, referencia) -> MalhaFechada
 
@@ -30,27 +30,27 @@ include("Interfaces.jl")
         Equivalente ao feedback() do MATLAB.
 
         Argumentos:
-            - planta        : struct <: SistemaPlanta  (ex: PenduloParams)
-            - controlador   : struct <: SistemaControlador (ex: PID)
+            - planta        : struct <: Planta      (ex: Pendulo)
+            - controlador   : struct <: Controlador (ex: PID)
             - referencia    : valor desejado — escalar ou vetor
 
         Exemplo:
             sys = conectar(pendulo, pid, π)
             sys = conectar(pendulo, lqr, [1.0, 0.0])
     """
-    function conectar(planta::P, controlador::C, referencia) where {P <: SistemaPlanta, C <: SistemaControlador}
-        ref = referencia isa Vector ? referencia : [Float64(referencia)]
+    function conectar(planta::Planta, controlador::Controlador, referencia)
+        ref = (referencia isa Vector) ? referencia : [Float64(referencia)]
 
         return MalhaFechada(planta,
                             controlador,
                             ref,
-                            planta.dim,
-                            dimEstado(controlador))
+                            planta.numEstados,
+                            numEstadosControle(controlador))
     end
 # =========================================================================
 
 # =========================================================================
-# CONDIÇÕES INICIAIS — monta o vetor aumentado
+# CONDIÇÕES INICIAIS 
     """
         condicoesIniciais(malha, x0_planta) -> Vector
 
@@ -70,7 +70,7 @@ include("Interfaces.jl")
 # =========================================================================
 
 # =========================================================================
-# DINÂMICA AUMENTADA — callable struct, compatível com ODEProblem
+# APLICAÇÃO DA MALHA FECHADA 
     """
         Dinâmica aumentada da malha fechada.
         Chamada pelo solver como malha(dx, x, p, t).
@@ -82,7 +82,6 @@ include("Interfaces.jl")
     function (malha::MalhaFechada)(dx, x, _, t)
         n = malha.dim_planta
         
-        # Fatia o vetor de estado sem alocação
         x_planta  = @view x[1:n]
         x_ctrl    = @view x[n+1:end]
         dx_planta = @view dx[1:n]
@@ -96,7 +95,7 @@ include("Interfaces.jl")
         
         # 3. Estados internos do controlador evoluem
         if malha.dim_ctrl > 0
-            evoluirEstado(malha.controlador, dx_ctrl, x_planta, x_ctrl, malha.referencia, t)
+            evoluirEstado!(malha.controlador, dx_ctrl, x_planta, x_ctrl, malha.referencia, t)
         end
     end
 # =========================================================================

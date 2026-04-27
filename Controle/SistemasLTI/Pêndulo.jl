@@ -35,22 +35,22 @@ include("../Abstrações/Interfaces.jl")
 
 # =========================================================================
 # STRUCT DA PLANTA
-    struct Pendulo <: SistemaPlanta
+    struct Pendulo <: Planta
         comprimento     ::Float64
         massa           ::Float64
         coefAtrito      ::Float64
         estadosIniciais ::Vector{Float64}
-        dim             ::Int
-        dinamica!       ::Function               
+        numEstados      ::Int
         variaveisEstado ::Tuple{String, String}
         nomeSistema     ::String
+        dinamica!       ::Function               
         
         function Pendulo(; comprimento, massa, coefAtrito, estadosIniciais)
             new(comprimento, massa, coefAtrito, estadosIniciais,
                 2,
-                pendulo!,                        # ← aponta para a função abaixo
                 ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"),
-                "Pêndulo Simples")
+                "Pêndulo Simples",
+                pendulo!)                        
         end
     end
 # =========================================================================
