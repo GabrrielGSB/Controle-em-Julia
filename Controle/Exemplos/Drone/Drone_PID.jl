@@ -37,10 +37,10 @@
         ix_saida     = [3,  7,  8,  9],    # Z,  Φ,  θ,  Ψ
         idx_saida    = [6, 10, 11, 12],    # Vz, VΦ, Vθ, VΨ
         mapear_saida = (u, x) -> [
-            clamp(m*g+u[1],  0.0,  2.0*m*g),  
-            clamp(u[2],     -0.5,  0.5),       
-            clamp(u[3],     -0.5,  0.5),       
-            clamp(u[4],     -0.1,  0.1)        
+            clamp(m*g + u[1],  0.0,  2.0*m*g),  
+            clamp(u[2],       -0.5,  0.5),       
+            clamp(u[3],       -0.5,  0.5),       
+            clamp(u[4],       -0.1,  0.1)        
         ]
     )
 # =========================================================
@@ -66,10 +66,14 @@
                   estados          = (3, 7, 8, 9),
                   mostrar_controle = true)
 
-    # m_alt = analisarPerformance(sol.solucao,
-    #                             referencia = ref[1],
-    #                             idx_estado = 3)
-    # imprimirRelatorio(m_alt, nome = "Canal Altitude (Z)")
+    
+    u_altitude = [v[1] for v in sol.u]   
+    m_alt = analisarPerformance(sol.solucao,
+                                referencia = ref[1],
+                                idx_estado = 3,
+                                u_historico= u_altitude)
+                                
+    imprimirRelatorio(m_alt, nome = "Canal Altitude (Z)")
 
     # m_roll = analisarPerformance(sol.solucao,
     #                              referencia = ref[2],
