@@ -1,11 +1,11 @@
 # =========================================================
 # INCLUDES
-    include("../SistemasLTI/Pêndulo.jl")
-    include("../controladores/PID.jl")
-    include("../Abstrações/MalhaFechada.jl")
-    include("../Ferramentas/ResoluçãoEDO.jl")
-    include("../Ferramentas/Visualização.jl")
-    include("../Ferramentas/AnálisePerformance.jl")
+    include("../../SistemasLTI/Pêndulo.jl")
+    include("../../controladores/PID.jl")
+    include("../../Abstrações/MalhaFechada.jl")
+    include("../../Ferramentas/ResoluçãoEDO.jl")
+    include("../../Ferramentas/Visualização.jl")
+    include("../../Ferramentas/AnálisePerformance.jl")
 # =========================================================
 
 # =========================================================
@@ -37,5 +37,5 @@
 
     # m = analisarPerformance(sol, referencia=π, idx_estado=1); imprimirRelatorio(m)
 
-    gerarAnimacao(sol, pendulo, 30, mostrar_controle=true)
+    # gerarAnimacao(sol, pendulo, 30, mostrar_controle=false)
 # =========================================================

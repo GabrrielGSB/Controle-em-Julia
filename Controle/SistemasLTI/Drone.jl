@@ -30,7 +30,7 @@ using DynamicPolynomials
         - controleU: Vetor com as entradas [U1, U2, U3, U4]
 =#
 
-struct DroneParams
+struct Drone <: Planta
     massa           ::Float64
     gravidade       ::Float64
     Ixx             ::Float64
@@ -38,91 +38,30 @@ struct DroneParams
     Izz             ::Float64
     Ct              ::Float64 
     Cl              ::Float64 
-    L               ::Float64 
-    controleW       ::Vector{Float64} # [w1, w2, w3, w4]
+    L               ::Float64
     estadosIniciais ::Vector{Float64}
+    numEstados      ::Int
     variaveisEstado ::Tuple
     nomeSistema     ::String
+    dinamica!       ::Function
 
-    function DroneParams(; massa, gravidade=9.81, Ixx, Iyy, Izz, Ct, Cl, L, controleW=[0.0, 0.0, 0.0, 0.0], estadosIniciais)
-        new(massa, gravidade, Ixx, Iyy, Izz, Ct, Cl, L, controleW, estadosIniciais, 
+    function Drone(; massa, gravidade=9.81, Ixx, Iyy, Izz, Ct, Cl, L, estadosIniciais)
+        new(massa, gravidade, Ixx, Iyy, Izz, Ct, Cl, L, estadosIniciais, 12,
             ("X", "Y", "Z", "Vx", "Vy", "Vz", "Φ", "θ", "Ψ", "VΦ", "Vθ", "VΨ"), 
-            "Drone Quadrotor")
+            "Drone Quadrotor",
+            drone!)
     end
 end
 
-function drone!(dx, x, p, t)
-    m, g          = p.massa, p.gravidade
-    Ixx, Iyy, Izz = p.Ixx, p.Iyy, p.Izz
-    Ct, Cl, L     = p.Ct, p.Cl, p.L
-    
-    w1, w2, w3, w4 = p.controleW[1], p.controleW[2], p.controleW[3], p.controleW[4]
+function drone!(dx, x, p::Drone, t; u=[0.0, 0.0, 0.0, 0.0])
+    m, g           = p.massa, p.gravidade
+    Ixx, Iyy, Izz  = p.Ixx, p.Iyy, p.Izz
 
-    # Cálculos das entradas de controle (U1 a U4) com base na velocidade dos motores
-    U1 = Ct*(w1^2 + w2^2 + w3^2 + w4^2)
-    U2 = Ct*L*(w1^2 - w3^2)
-    U3 = Ct*L*(w2^2 - w4^2)
-    U4 = Cl*(w1^2 - w2^2 + w3^2 - w4^2)
+    U1, U2, U3, U4 = u[1], u[2], u[3], u[4]
 
-    # Extração de estados
-    # X, Y, Z = x[1], x[2], x[3] 
     Vx, Vy, Vz = x[4], x[5], x[6] 
     Φ, θ, Ψ    = x[7], x[8], x[9]
     VΦ, Vθ, VΨ = x[10], x[11], x[12]
-
-    # 1. Cinemática de Translação (Derivadas de X, Y e Z)
-    dx[1] = Vz*(sin(Φ)*sin(Ψ) + cos(Φ)*cos(Ψ)*sin(θ)) - Vy*(cos(Φ)*sin(Ψ) - cos(Ψ)*sin(Φ)*sin(θ)) + Vx*cos(Ψ)*cos(θ)
-    dx[2] = Vy*(cos(Φ)*cos(Ψ) + sin(Φ)*sin(Ψ)*sin(θ)) - Vz*(cos(Ψ)*sin(Φ) - cos(Φ)*sin(Ψ)*sin(θ)) + Vx*cos(θ)*sin(Ψ)
-    dx[3] = Vz*cos(Φ)*cos(θ) - Vx*sin(θ) + Vy*cos(θ)*sin(Φ)
-
-    # 2. Dinâmica de Translação (Derivadas de Vx, Vy e Vz)
-    dx[4] = VΨ*Vy - Vθ*Vz + g*sin(θ)
-    dx[5] = VΦ*Vz - VΨ*Vx - g*cos(θ)*sin(Φ)
-    dx[6] = Vθ*Vx - VΦ*Vy - g*cos(Φ)*cos(θ) + (U1/m)
-
-    # 3. Cinemática de Rotação (Derivadas de ϕ, θ e ψ)
-    dx[7] = VΦ + Vθ*sin(Φ)*tan(θ) + VΨ*cos(Φ)*tan(θ)
-    dx[8] = Vθ*cos(Φ) - VΨ*sin(Φ)
-    dx[9] = VΨ*(cos(Φ)/cos(θ)) + Vθ*(sin(Φ)/cos(θ))
-
-    # 4. Dinâmica de Rotação (VΦ, Vθ, VΨ dot)
-    dx[10] = (1/Ixx) * (U2 + (Iyy - Izz)*Vθ*VΨ)
-    dx[11] = (1/Iyy) * (U3 + (Izz - Ixx)*VΦ*VΨ)
-    dx[12] = (1/Izz) * (U4 + (Ixx - Iyy)*VΦ*Vθ)
-end
-
-function drone_malha_fechada!(dx, x, p, t)
-    m, g          = p.massa, p.gravidade
-    Ixx, Iyy, Izz = p.Ixx, p.Iyy, p.Izz
-    Ct, Cl, L     = p.Ct, p.Cl, p.L
-    
-    Vx, Vy, Vz = x[4], x[5], x[6] 
-    Φ, θ, Ψ    = x[7], x[8], x[9]
-    VΦ, Vθ, VΨ = x[10], x[11], x[12]
-    Z = x[3] 
-
-    # =========================================================
-    # APLICAÇÃO DO CONTROLADOR
-        # REFERÊNCIAS
-            Z_ref = 1 
-            Φ_ref = 0.087
-            θ_ref = 0.087
-            Ψ_ref = 0.0
-        
-        # CÁLCULO DOS ERROS
-            erro_Z = Z - Z_ref
-            erro_Φ = Φ - Φ_ref
-            erro_θ = θ - θ_ref
-            erro_Ψ = Ψ - Ψ_ref
-
-        # DEFINIÇÃO DAS AÇÕES DE CONTROLE
-            U_barra = -3 * erro_Z - 0.5 * Vz
-
-            U1 = ((m*g) + U_barra) 
-            U2 = -0.05*erro_Φ - 0.05*VΦ
-            U3 = -0.05*erro_θ - 0.05*Vθ
-            U4 = -0.0061*erro_Ψ - 0.002*VΨ
-    # =========================================================
 
     # 1. Cinemática de Translação
     dx[1] = Vz*(sin(Φ)*sin(Ψ) + cos(Φ)*cos(Ψ)*sin(θ)) - Vy*(cos(Φ)*sin(Ψ) - cos(Ψ)*sin(Φ)*sin(θ)) + Vx*cos(Ψ)*cos(θ)
@@ -185,7 +124,7 @@ function obterEqPolyDrone()
 end
 
 
-function gerarAnimacao(solucao, p::DroneParams, fps)
+function gerarAnimacao(solucao, p::Drone, fps)
     gr() 
     println("Iniciando animação 3D do Drone...")
 

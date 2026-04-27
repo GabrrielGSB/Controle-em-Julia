@@ -1,8 +1,8 @@
 # =========================================================
 # INCLUDES
-    include("../SistemasLTI/Pêndulo.jl")
-    include("../Ferramentas/ResoluçãoEDO.jl")
-    include("../Ferramentas/Visualização.jl")
+    include("../../SistemasLTI/Pêndulo.jl")
+    include("../../Ferramentas/ResoluçãoEDO.jl")
+    include("../../Ferramentas/Visualização.jl")
 # =========================================================
 
 # =========================================================
