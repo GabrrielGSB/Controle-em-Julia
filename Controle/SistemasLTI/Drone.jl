@@ -1,6 +1,8 @@
 using ProgressMeter
 using DynamicPolynomials
 
+include("../Abstrações/Interfaces.jl")
+
 #=
 3. SISTEMA DINÂMICO DE DRONE (QUADROTOR 6-DOF) --------------------------------------------------------
     3.1. DESCRIÇÃO:
@@ -59,19 +61,23 @@ function drone!(dx, x, p::Drone, t; u=[0.0, 0.0, 0.0, 0.0])
 
     U1, U2, U3, U4 = u[1], u[2], u[3], u[4]
 
+    Z          = x[3]
     Vx, Vy, Vz = x[4], x[5], x[6] 
     Φ, θ, Ψ    = x[7], x[8], x[9]
     VΦ, Vθ, VΨ = x[10], x[11], x[12]
 
-    # 1. Cinemática de Translação
-    dx[1] = Vz*(sin(Φ)*sin(Ψ) + cos(Φ)*cos(Ψ)*sin(θ)) - Vy*(cos(Φ)*sin(Ψ) - cos(Ψ)*sin(Φ)*sin(θ)) + Vx*cos(Ψ)*cos(θ)
-    dx[2] = Vy*(cos(Φ)*cos(Ψ) + sin(Φ)*sin(Ψ)*sin(θ)) - Vz*(cos(Ψ)*sin(Φ) - cos(Φ)*sin(Ψ)*sin(θ)) + Vx*cos(θ)*sin(Ψ)
-    dx[3] = Vz*cos(Φ)*cos(θ) - Vx*sin(θ) + Vy*cos(θ)*sin(Φ)
+    # Restrição de solo: Z ≤ 0 E o drone tentando descer
+    no_solo = Z <= 0.0 && Vz < 0.0
 
-    # 2. Dinâmica de Translação
+    # 1. Cinemática de Translação — congela se no solo
+    dx[1] = no_solo ? 0.0 : Vz*(sin(Φ)*sin(Ψ) + cos(Φ)*cos(Ψ)*sin(θ)) - Vy*(cos(Φ)*sin(Ψ) - cos(Ψ)*sin(Φ)*sin(θ)) + Vx*cos(Ψ)*cos(θ)
+    dx[2] = no_solo ? 0.0 : Vy*(cos(Φ)*cos(Ψ) + sin(Φ)*sin(Ψ)*sin(θ)) - Vz*(cos(Ψ)*sin(Φ) - cos(Φ)*sin(Ψ)*sin(θ)) + Vx*cos(θ)*sin(Ψ)
+    dx[3] = no_solo ? 0.0 : Vz*cos(Φ)*cos(θ) - Vx*sin(θ) + Vy*cos(θ)*sin(Φ)
+
+    # 2. Dinâmica de Transl6ação
     dx[4] = VΨ*Vy - Vθ*Vz + g*sin(θ)
     dx[5] = VΦ*Vz - VΨ*Vx - g*cos(θ)*sin(Φ)
-    dx[6] = Vθ*Vx - VΦ*Vy - g*cos(Φ)*cos(θ) + (U1/m)
+    dx[6] = no_solo ? max(0.0, Vθ*Vx - VΦ*Vy - g*cos(Φ)*cos(θ) + (U1/m)) : Vθ*Vx - VΦ*Vy - g*cos(Φ)*cos(θ) + (U1/m)
 
     # 3. Cinemática de Rotação
     dx[7] = VΦ + Vθ*sin(Φ)*tan(θ) + VΨ*cos(Φ)*tan(θ)

@@ -23,8 +23,10 @@
 # =========================================================
 # SIMULAÇÃO
     sys = conectar(pendulo, pid, π)      
-    x0  = condicoesIniciais(sys, [1.0, 0.0])   
-    sol = resolverSistema(sys, x0, (0.0, 10.0),
+    x0  = condicoesIniciais(sys, [1.0, 0.0]) 
+    
+    t_simu = 10.0  
+    sol = resolverSistema(sys, x0, (0.0, t_simu),
                           resolucao=0.01,
                           salvar_controle=false)
 # =========================================================

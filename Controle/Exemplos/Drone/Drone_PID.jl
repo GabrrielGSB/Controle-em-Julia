@@ -29,15 +29,19 @@
 # =========================================================
 # CONTROLADOR
     controlador = PID_MIMO(
-        controladores = [
-            PID(Kp = 2.0,  Ki = 0.5,  Kd = 1.0),   # Altitude (Z)
-            PID(Kp = 0.8,  Ki = 0.1,  Kd = 0.3),   # Roll     (Φ)
-            PID(Kp = 0.8,  Ki = 0.1,  Kd = 0.3),   # Pitch    (θ)
-            PID(Kp = 0.5,  Ki = 0.05, Kd = 0.2)    # Yaw      (Ψ)
-        ],
+        controladores = [PID(Kp = 2.0,  Ki = 0.5,  Kd = 1.0),   # Altitude (Z)
+                         PID(Kp = 0.8,  Ki = 0.1,  Kd = 0.3),   # Roll     (Φ)
+                         PID(Kp = 0.8,  Ki = 0.1,  Kd = 0.3),   # Pitch    (θ)
+                         PID(Kp = 0.5,  Ki = 0.05, Kd = 0.2)],  # Yaw      (Ψ)
+        
         ix_saida     = [3,  7,  8,  9],    # Z,  Φ,  θ,  Ψ
         idx_saida    = [6, 10, 11, 12],    # Vz, VΦ, Vθ, VΨ
-        mapear_saida = (u, x) -> [u[1], u[2], u[3], u[4]]
+        mapear_saida = (u, x) -> [
+            clamp(m*g+u[1],  0.0,  2.0*m*g),  
+            clamp(u[2],     -0.5,  0.5),       
+            clamp(u[3],     -0.5,  0.5),       
+            clamp(u[4],     -0.1,  0.1)        
+        ]
     )
 # =========================================================
 
@@ -50,8 +54,8 @@
 
     sys = conectar(drone, controlador, ref)
     x0  = condicoesIniciais(sys, zeros(12))
-    sol = resolverSistema(sys, x0, (0.0, 15.0),
-                          resolucao       = 0.01,
+    sol = resolverSistema(sys, x0, (0.0, 20.0),
+                          resolucao       = 0.001,
                           salvar_controle = true)
 # =========================================================
 
