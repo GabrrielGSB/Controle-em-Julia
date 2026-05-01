@@ -1,4 +1,4 @@
-include("../../Funções Auxiliares/SOS.jl")
+include("../../Ferramentas/SOS.jl")
 
 # 1. Definição das Variáveis e do Sistema
 @polyvar x1 x2

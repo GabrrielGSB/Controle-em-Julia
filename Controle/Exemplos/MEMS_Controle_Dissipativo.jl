@@ -3,24 +3,22 @@
 using Plots
 
 include("../SistemasLTI/MEMS.jl")
-include("../Funções Auxiliares/ResoluçãoEDO.jl")
+include("../Ferramentas/ResoluçãoEDO.jl")
 
 # ==========================================
 # 1. Definição dos Parâmetros da Planta
 # ==========================================
-r = 1.0       # Parâmetro r do sistema
-ξ = 0.1       # Fator de amortecimento relativo ξ
-q̄ = 1.0       # Parâmetro \bar{q}
-x̄ = 0.5       # Parâmetro \bar{x} (escolhido < 1 para que S > 0)
-
-
+r = 1.0       
+ξ = 0.1      
+q̄ = 1.0       
+x̄ = 0.5       
 
 # ==========================================
 # 2. Projeto do Controlador (Dissipatividade)
 # ==========================================
 S = -(x̄ - 1.0) / 3.0  # Conforme Equação (78) do artigo:
-R = 0.1  # Escolhemos um R > 0 pequeno:                 
-K = -(1.0 / R) * S # O ganho do controlador estabilizante K = -R^{-1} * S^T  
+R = 0.1               # Escolhemos um R > 0 pequeno:                 
+K = -(1.0 / R) * S    # O ganho do controlador estabilizante K = -R^(-1) * S^T  
 
 parametros = MEMSParams(q_bar   = q̄, 
                         xi      = ξ, 
