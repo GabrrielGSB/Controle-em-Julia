@@ -14,7 +14,7 @@ using Clarabel
 # ======================================================================== #
 
 println("Iniciando a Otimização SOS...")
-
+# --------------- DEFINIÇÃO DA PLANTA / LEI CONTROLE ------------------- #
 # 1. Declaração das Variáveis Polinomiais
 @polyvar x1 x2 u
 x = [x1, x2]
@@ -49,7 +49,7 @@ epsilon_R = 1e-4
 
 # Restrições de positividade estrita (margens)
 beta = 1e-8
-@constraint(model0, V0 - beta*(x1^2 + x2^2) in SOSCone())
+@constraint(model0, V0 - beta*(x1^2 + x2^2)   in SOSCone())
 @constraint(model0, T0 - beta*(x1^2 + x2^2)^2 in SOSCone())
 
 # Gradiente de V0
@@ -61,8 +61,6 @@ r_yu0 = dot(y, Q0 * y) + 2 * dot(y, S0 * [u]) + dot([u], R0 * [u])
 diss_expr0 = -Vdot0 - T0 + r_yu0
 
 @constraint(model0, diss_expr0 in SOSCone())
-
-# @objective(model0, Min, Q0[1,1])
 
 # Resolvendo o SOSP inicial
 optimize!(model0)
@@ -126,8 +124,6 @@ while i < imax
     # Em JuMP, restrições LMI usam PSDCone (Positive Semidefinite Cone)
     @constraint(model, Symmetric(M) in PSDCone())
     @constraint(model, Symmetric(R0_val - R) in PSDCone())
-
-    # @objective(model, Min, Q[1,1])
     
     # Resolver
     optimize!(model)
