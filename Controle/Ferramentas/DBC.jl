@@ -12,6 +12,7 @@ using SumOfSquares
 using DynamicPolynomials
 using LinearAlgebra
 using Clarabel
+# using COSMO
 using Printf
 
 """
@@ -153,7 +154,46 @@ end
 function _iteracao0(f, G, h, vars_x, u_vec, Z_v, Z_t, dim_y, dim_u,
                     epsilon_R, beta, verbose)
 
-    model = SOSModel(Clarabel.Optimizer)
+    # model = SOSModel(Clarabel.Optimizer)
+     model = SOSModel(optimizer_with_attributes(
+        Clarabel.Optimizer,
+        "max_iter"                         => 500,
+        "time_limit"                       => 180.0,
+        "verbose"                          => false,
+
+        # Tolerâncias relaxadas — combate o NUMERICAL_ERROR
+        "tol_gap_abs"                      => 1e-6,
+        "tol_gap_rel"                      => 1e-6,
+        "tol_feas"                         => 1e-6,
+        "tol_infeas_abs"                   => 1e-6,
+        "tol_infeas_rel"                   => 1e-6,
+
+        # Tolerâncias reduzidas (usadas quando o solver está perto do limite)
+        "reduced_tol_gap_abs"              => 1e-4,
+        "reduced_tol_gap_rel"              => 1e-4,
+        "reduced_tol_feas"                 => 1e-4,
+
+        # Equilibração — reescala interna das matrizes SDP
+        "equilibrate_enable"               => true,
+        "equilibrate_max_iter"             => 50,     # padrão: 10
+        "equilibrate_min_scaling"          => 1e-6,
+        "equilibrate_max_scaling"          => 1e6,
+
+        # Regularização estática — estabiliza matrizes quase singulares
+        "static_regularization_enable"     => true,
+        "static_regularization_constant"   => 1e-7,  # padrão: 1e-8, sobe levemente
+
+        # Regularização dinâmica — ativa quando autovalores ficam muito pequenos
+        "dynamic_regularization_enable"    => true,
+        "dynamic_regularization_eps"       => 1e-12,
+        "dynamic_regularization_delta"     => 1e-6,  # padrão: 2e-7, sobe levemente
+
+        # Refinamento iterativo — melhora a solução após cada passo
+        "iterative_refinement_enable"      => true,
+        "iterative_refinement_max_iter"    => 20,    # padrão: 10
+        "iterative_refinement_reltol"      => 1e-12,
+        "iterative_refinement_abstol"      => 1e-11,
+    ))
     set_silent(model)
 
     @variable(model, V0, SOSPoly(Z_v))
@@ -200,7 +240,46 @@ end
 function _iteracao_k(f, G, h, vars_x, u_vec, Z_v, Z_t, dim_y, dim_u,
                      Q0_val, S0_val, R0_val, epsilon_R, beta, verbose, i)
 
-    model = SOSModel(Clarabel.Optimizer)
+    # model = SOSModel(Clarabel.Optimizer)
+    model = SOSModel(optimizer_with_attributes(
+        Clarabel.Optimizer,
+        "max_iter"                         => 500,
+        "time_limit"                       => 180.0,
+        "verbose"                          => false,
+
+        # Tolerâncias relaxadas — combate o NUMERICAL_ERROR
+        "tol_gap_abs"                      => 1e-6,
+        "tol_gap_rel"                      => 1e-6,
+        "tol_feas"                         => 1e-6,
+        "tol_infeas_abs"                   => 1e-6,
+        "tol_infeas_rel"                   => 1e-6,
+
+        # Tolerâncias reduzidas (usadas quando o solver está perto do limite)
+        "reduced_tol_gap_abs"              => 1e-4,
+        "reduced_tol_gap_rel"              => 1e-4,
+        "reduced_tol_feas"                 => 1e-4,
+
+        # Equilibração — reescala interna das matrizes SDP
+        "equilibrate_enable"               => true,
+        "equilibrate_max_iter"             => 50,     # padrão: 10
+        "equilibrate_min_scaling"          => 1e-6,
+        "equilibrate_max_scaling"          => 1e6,
+
+        # Regularização estática — estabiliza matrizes quase singulares
+        "static_regularization_enable"     => true,
+        "static_regularization_constant"   => 1e-7,  # padrão: 1e-8, sobe levemente
+
+        # Regularização dinâmica — ativa quando autovalores ficam muito pequenos
+        "dynamic_regularization_enable"    => true,
+        "dynamic_regularization_eps"       => 1e-12,
+        "dynamic_regularization_delta"     => 1e-6,  # padrão: 2e-7, sobe levemente
+
+        # Refinamento iterativo — melhora a solução após cada passo
+        "iterative_refinement_enable"      => true,
+        "iterative_refinement_max_iter"    => 20,    # padrão: 10
+        "iterative_refinement_reltol"      => 1e-12,
+        "iterative_refinement_abstol"      => 1e-11,
+    ))
     set_silent(model)
 
     @variable(model, V, SOSPoly(Z_v))

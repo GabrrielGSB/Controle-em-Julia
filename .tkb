@@ -15,7 +15,7 @@
     },
     "vMi0mbO0y2qdd_agNy18-": {
       "id": "vMi0mbO0y2qdd_agNy18-",
-      "description": "- [ ] Melhor separação das funções de controle das plantas.\n- [ ] Adição de funções para aplicação de controladores em série com a planta.\n- [ ] Adição de funções para aplicação de entrada/disturbio no sistema",
+      "description": "- [x] Melhor separação das funções de controle das plantas.\n- [x] Adição de funções para aplicação de controladores em série com a planta.\n- [ ] Adição de funções para aplicação de entrada/disturbio no sistema",
       "columnId": "column-L29-ouWgkIlapL5xuuwZm",
       "color": "#80808000"
     },
@@ -27,7 +27,7 @@
     },
     "EjI8EQ0FZm8OAXYY0fhxO": {
       "id": "EjI8EQ0FZm8OAXYY0fhxO",
-      "description": "## Controladores\n\n- [ ] Criação de função de análise de performance de controlador",
+      "description": "## Controladores\n\n- [x] Criação de função de análise de performance de controlador\n- [x] Criação de função de comparação de performance de controlador",
       "columnId": "column-done",
       "color": "#80808000"
     }
