@@ -18,6 +18,7 @@ include("Interfaces.jl")
         referencia  ::Vector{Float64}
         dim_planta  ::Int
         dim_ctrl    ::Int
+        idx_saida   ::Vector{Int}
     end
 # =========================================================================
 
@@ -38,14 +39,17 @@ include("Interfaces.jl")
             sys = conectar(pendulo, pid, π)
             sys = conectar(pendulo, lqr, [1.0, 0.0])
     """
-    function conectar(planta::Planta, controlador::Controlador, referencia)
+    function conectar(; planta::Planta, controlador::Controlador, referencia, idx_saida=1)
         ref = (referencia isa Vector) ? referencia : [Float64(referencia)]
+
+        idx_s = (idx_saida isa Vector) ? idx_saida : [Int(idx_saida)]
 
         return MalhaFechada(planta,
                             controlador,
                             ref,
                             planta.numEstados,
-                            numEstadosControle(controlador))
+                            numEstadosControle(controlador),
+                            idx_s)
     end
 # =========================================================================
 
@@ -87,15 +91,14 @@ include("Interfaces.jl")
         dx_planta = @view dx[1:n]
         dx_ctrl   = @view dx[n+1:end]
         
-        # 1. Controlador lê a planta e calcula u
-        u = calcularSaida(malha.controlador, x_planta, x_ctrl, malha.referencia, t)
+        y = x_planta[malha.idx_saida]
         
-        # 2. Planta evolui com u
+        u = calcularSaida(malha.controlador, y, x_ctrl, malha.referencia, t)
+        
         malha.planta.dinamica!(dx_planta, x_planta, malha.planta, t; u=u)
         
-        # 3. Estados internos do controlador evoluem
         if malha.dim_ctrl > 0
-            evoluirEstado!(malha.controlador, dx_ctrl, x_planta, x_ctrl, malha.referencia, t)
+            evoluirEstado!(malha.controlador, dx_ctrl, y, x_ctrl, malha.referencia, t)
         end
     end
 # =========================================================================

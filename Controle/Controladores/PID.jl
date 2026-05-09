@@ -27,18 +27,18 @@ include("../Abstrações/Interfaces.jl")
 # IMPLEMENTAÇÃO SISO
     numEstadosControle(::PID) = 1
 
-    function calcularSaida(pid::PID, x_planta, x_ctrl, ref, t)
-        erro     = ref[1] - x_planta[1]
+    function calcularSaida(pid::PID, y, x_ctrl, ref, t)
+        erro     = ref[1] - y[1]
         integral = x_ctrl[1]
-        derivada = -x_planta[2]        
+        derivada = -y[2]        
 
         return pid.Kp * erro +
                pid.Ki * integral +
                pid.Kd * derivada
     end
     
-    function evoluirEstado!(pid::PID, dx_ctrl, x_planta, x_ctrl, ref, t)
-        dx_ctrl[1] = ref[1] - x_planta[1]  
+    function evoluirEstado!(pid::PID, dx_ctrl, y, x_ctrl, ref, t)
+        dx_ctrl[1] = ref[1] - y[1]  
     end
 # =========================================================================
 

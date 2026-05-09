@@ -43,6 +43,6 @@
                               tempoMaximo        = 20.0,
                               titulo             = "Retrato de Fase - Campo Vetorial")
    
-    gerarAnimacao(solucao, parametros, 30)    
+    # gerarAnimacao(solucao, parametros, 30)    
 
 # =========================================================
