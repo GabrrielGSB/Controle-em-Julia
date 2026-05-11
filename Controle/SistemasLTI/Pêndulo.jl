@@ -17,7 +17,7 @@ include("../Abstrações/Interfaces.jl")
         ordem é decomposto em duas equações de 1ª ordem:
 
         2.2.1. Vetor de Estados: 
-            - x[1] : Ângulo θ (rad)        -> Posição angular
+            - x[1] : Ângulo θ (rad)        
             - x[2] : Velocidade angular ω (rad/s)
 
         2.2.2. Vetor de Derivadas (dx):
@@ -35,7 +35,7 @@ include("../Abstrações/Interfaces.jl")
 
 # =========================================================================
 # STRUCT DA PLANTA
-    struct Pendulo <: Planta
+   struct Pendulo <: Planta
         comprimento     ::Float64
         massa           ::Float64
         coefAtrito      ::Float64
@@ -43,14 +43,19 @@ include("../Abstrações/Interfaces.jl")
         numEstados      ::Int
         variaveisEstado ::Tuple{String, String}
         nomeSistema     ::String
-        dinamica!       ::Function               
+        dinamica!       ::Function 
         
-        function Pendulo(; comprimento, massa, coefAtrito, estadosIniciais)
+        function Pendulo(; 
+                comprimento     = 1.0, 
+                massa           = 1.0, 
+                coefAtrito      = 0.1, 
+                estadosIniciais = [0.1, 0.0]
+            )
             new(comprimento, massa, coefAtrito, estadosIniciais,
                 2,
                 ("Ângulo θ (rad)", "Velocidade angular ω (rad/s)"),
                 "Pêndulo Simples",
-                pendulo!)                        
+                pendulo!) 
         end
     end
 # =========================================================================

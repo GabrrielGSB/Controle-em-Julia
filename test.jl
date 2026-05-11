@@ -1,32 +1,94 @@
-using OrdinaryDiffEq
-using PlotlyJS 
+using ForwardDiff
+using LinearAlgebra
 
-include("Controle/Funções Auxiliares/CoversãoPoly2EDO.jl")
-include("Controle/Funções Auxiliares/ResoluçãoEDO.jl")
-include("Controle/Funções Auxiliares/Visualização.jl")
+# Não esqueça de incluir as interfaces base se o seu PênduloInvertido depender delas
+# include("Controle/Abstrações/Interfaces.jl")
 
-# 1. Suas variáveis e sistema
-@polyvar x1 x2
-vars = [x1, x2]
 
-f = [2*x1^3 + x1^2*x2 - 6*x1*x2^2 + 5*x2^3, 0.0]
-g = [0.0, 1.0]
-u = 1.0582933631271871e-29 + 0.0012313160167337946*x2 - 0.0018180597277442838*x1 + 2.0678052773368813e-12*x2^2 - 3.722042803877773e-12*x1*x2 + 2.2932506152804264e-12*x1^2 - 3.558277299249908*x2^3 + 1.5723270323261815*x1*x2^2 + 3.7987616032273896*x1^2*x2 - 3.957236453645706*x1^3
-u1 = -3.6345*x1^3 + 4.4439*x1^2*x2 - 7.5113*x1*x2^2 - 3.5452*x2^3;
+"""
+    Lineariza um sistema não-linear do FrameWork Controle ao redor 
+    de um ponto de operação (x0, u0).
 
-meu_sistema_numerico1! = extrairSistemaEDO(f, vars)
-meu_sistema_numerico2! = extrairSistemaEDO(f, vars, g_x=g, u_x=u)
-meu_sistema_numerico3! = extrairSistemaEDO(f, vars, g_x=g, u_x=u1)
+    # Argumentos:
+    - `planta`: Objeto do tipo Planta (ex: PenduloInvertido) que contém os parâmetros e a função dinamica!.
+    - `x0`: Vetor de estado no ponto de equilíbrio.
+    - `u0`: Vetor de ação de controle no ponto de equilíbrio.
+    - `h`: (Opcional) Função de saída `y = h(x, u)`. Se omitida, assume realimentação de todos os estados (y = x).
 
-x0    = [0.5, -0.5]
-tspan = (0.0, 1000.0)
+    # Retorno:
+    - Matrizes `A`, `B`, `C` e `D` do Espaço de Estados (Linear).
+"""
+function linearizar_sistema(planta, x0::Vector{Float64}, u0::Vector{Float64}; h::Union{Function, Nothing}=nothing)
+    
+    # =======================================================================
+    # O PULO DO GATO: Adaptador para o ForwardDiff
+    # O ForwardDiff passa números especiais (Dual Numbers) para calcular a 
+    # derivada exata. Nossa função precisa criar um vetor `dx` que suporte 
+    # esses números, caso contrário ocorrerá um "Type Error".
+    # =======================================================================
+    function f_dinamica(x, u)
+        # Descobre dinamicamente o tipo necessário (Float64 ou ForwardDiff.Dual)
+        T = promote_type(eltype(x), eltype(u))
+        
+        # Cria o vetor dx com o tipo correto e o tamanho da planta
+        dx = zeros(T, planta.numEstados)
+        
+        # O framework espera u escalar para SISO e vetor para MIMO.
+        u_in = length(u) == 1 ? u[1] : u
+        
+        # Chama a dinâmica do framework (in-place)
+        # t = 0.0 é arbitrário, pois os sistemas são invariantes no tempo (LTI)
+        planta.dinamica!(dx, x, planta, 0.0; u=u_in)
+        
+        return dx
+    end
 
-solucao = resolverSistema(meu_sistema_numerico1!, x0, tspan)
-solucao1 = resolverSistema(meu_sistema_numerico2!, x0, tspan)
-solucao2 = resolverSistema(meu_sistema_numerico3!, x0, tspan)
+    # Matriz A: Jacobiano da dinâmica em relação aos estados (mantendo u fixo em u0)
+    A = ForwardDiff.jacobian(x -> f_dinamica(x, u0), x0)
+    
+    # Matriz B: Jacobiano da dinâmica em relação ao controle (mantendo x fixo em x0)
+    B = ForwardDiff.jacobian(u -> f_dinamica(x0, u), u0)
+    
+    # Matrizes de Saída (C e D)
+    if h === nothing
+        n_estados = length(x0)
+        n_entradas = length(u0)
+        C = Matrix{Float64}(I, n_estados, n_estados)
+        D = zeros(Float64, n_estados, n_entradas)
+    else
+        C = ForwardDiff.jacobian(x -> h(x, u0), x0)
+        D = ForwardDiff.jacobian(u -> h(x0, u), u0)
+    end
+    
+    return A, B, C, D
+end
 
-plotarNoTempo([solucao, solucao1, solucao2])
-# plotarNoTempo(solucao1)
+# =========================================================
+# TESTE COM O PÊNDULO INVERTIDO DO SEU FRAMEWORK
+# =========================================================
 
-plotarRetratoFase([solucao, solucao1, solucao2])
-# plotarRetratoFase(solucao1)
+# 1. Instanciamos a planta física do seu framework para carregar os parâmetros (M, m, l, g, b, etc.)
+pendulo = PenduloInvertido()
+
+# 2. Ponto de operação: Pêndulo na vertical para cima (0 rad), parado, no centro da pista (0 m), sem força (0 N)
+# No modelo Cart-Pole os estados geralmente são: [Posição (x), Velocidade (x_dot), Ângulo (θ), Velocidade Angular (θ_dot)]
+x_eq = [0.0, 0.0, 0.0, 0.0]
+u_eq = [0.0] # u é um vetor com 1 elemento
+
+# 3. Executamos a linearização passando o objeto da planta
+A, B, C, D = linearizar_sistema(pendulo, x_eq, u_eq)
+
+println("=== Matrizes do Espaço de Estados Linearizado ===")
+println("\nMatriz A (Dinâmica dos Estados):")
+display(A)
+
+println("\nMatriz B (Matriz de Entrada):")
+display(B)
+
+println("\nMatriz C (Matriz de Saída):")
+display(C)
+
+polos = eigvals(A)
+
+println("Os polos do sistema (Autovalores de A) são:")
+display(polos)

@@ -3,22 +3,21 @@ include("../Abstrações/Interfaces.jl")
 # =========================================================================
 # ESTRUTURA
     """
-        Controlador PID clássico.
-
-        Campos:
-            - Kp : Ganho proporcional
-            - Ki : Ganho integral
-            - Kd : Ganho derivativo
-
-        A referência e a planta são conectadas externamente via conectar().
+    Controlador PID clássico com Anti-Windup.
+    Campos:
+        - Kp : Ganho proporcional
+        - Ki : Ganho integral
+        - Kd : Ganho derivativo
+        - lim_integral : Limite máximo absoluto (Anti-Windup) para o estado x_ctrl[1]
     """
     struct PID <: Controlador
-        Kp ::Float64
-        Ki ::Float64
-        Kd ::Float64
+        Kp::Float64
+        Ki::Float64
+        Kd::Float64
+        lim_integral::Float64
 
-        function PID(; Kp, Ki, Kd)
-            new(Kp, Ki, Kd)
+        function PID(; Kp, Ki, Kd, lim_integral=Inf)
+            new(Kp, Ki, Kd, lim_integral)
         end
     end
 # =========================================================================
@@ -30,15 +29,22 @@ include("../Abstrações/Interfaces.jl")
     function calcularSaida(pid::PID, y, x_ctrl, ref, t)
         erro     = ref[1] - y[1]
         integral = x_ctrl[1]
-        derivada = -y[2]        
+        derivada = -y[2]
 
         return pid.Kp * erro +
-               pid.Ki * integral +
-               pid.Kd * derivada
+            pid.Ki * integral +
+            pid.Kd * derivada
     end
-    
+
     function evoluirEstado!(pid::PID, dx_ctrl, y, x_ctrl, ref, t)
-        dx_ctrl[1] = ref[1] - y[1]  
+        erro = ref[1] - y[1]
+        
+        # Lógica de Anti-Windup (Clamping Condicional)
+        if (x_ctrl[1] >= pid.lim_integral && erro > 0.0) || (x_ctrl[1] <= -pid.lim_integral && erro < 0.0)     
+            dx_ctrl[1] = 0.0 
+        else
+            dx_ctrl[1] = erro 
+        end
     end
 # =========================================================================
 
