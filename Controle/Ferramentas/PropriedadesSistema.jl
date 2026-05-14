@@ -5,11 +5,11 @@ using LinearAlgebra
 # =====================================================================
 # FUNÇÕES AUXILIARES (Construção das matrizes P e Q)
     """
-        _mat_control(A, B)
+        matrizControlabilidade(A, B)
 
     Calcula e retorna a Matriz de Controlabilidade para o par (A, B).
     """
-    function _mat_control(A::AbstractMatrix, B::AbstractMatrix)
+    function matrizControlabilidade(A::AbstractMatrix, B::AbstractVecOrMat)
         n = size(A, 1) 
         
         C_mat = copy(B)
@@ -25,11 +25,11 @@ using LinearAlgebra
     end
 
     """
-        _mat_observ(A, C)
+        matrizObservabilidade(A, C)
 
     Calcula e retorna a Matriz de Observabilidade para o par (A, C).
     """
-    function _mat_observ(A::AbstractMatrix, C::AbstractMatrix)
+    function matrizObservabilidade(A::AbstractMatrix, C::AbstractMatrix)
         n = size(A, 1) 
         
         O_mat = copy(C)
@@ -53,9 +53,9 @@ using LinearAlgebra
     Verifica se o sistema definido pelo par (A, B) é controlável.
     Retorna `true` se for controlável, `false` caso contrário.
     """
-    function controlavel(A::AbstractMatrix, B::AbstractMatrix; retornar=false, tol=1e-7)
+    function controlavel(A::AbstractMatrix, B::AbstractVecOrMat; retornar=false, tol=1e-7)
         n = size(A, 1)
-        P = _mat_control(A, B)
+        P = matrizControlabilidade(A, B)
         
         posto = rank(P, rtol=tol)
 
@@ -73,7 +73,7 @@ using LinearAlgebra
     """
     function observavel(A::AbstractMatrix, C::AbstractMatrix; retornar=false, tol=1e-7)
         n = size(A, 1)
-        Q = _mat_observ(A, C)
+        Q = matrizObservabilidade(A, C)
         
         posto = rank(Q, rtol=tol)
         

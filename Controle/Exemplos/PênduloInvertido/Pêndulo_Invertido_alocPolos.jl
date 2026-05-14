@@ -1,144 +1,83 @@
 using ForwardDiff
 using LinearAlgebra
+using Printf
 
-include("../../Ferramentas/LinearizarSistema.jl")
+# Importação das ferramentas e abstrações
+include("../../Controladores/RE.jl")
+include("../../Abstrações/MalhaFechada.jl")
 include("../../SistemasLTI/PênduloInvertido.jl")
+include("../../Ferramentas/ResoluçãoEDO.jl")
+include("../../Ferramentas/Visualização.jl")
+include("../../Ferramentas/LinearizarSistema.jl")
+include("../../Algoritmos/Bass_Gura.jl")
 
+# =========================================================================
+# 1. CONFIGURAÇÃO DA PLANTA E PROJETO DO CONTROLADOR
+# =========================================================================
 
-# =======================================================================
-# 2. IMPLEMENTAÇÃO DA FÓRMULA DE BASS-GURA
-# =======================================================================
-"""
-    bass_gura(A, B, polos_desejados)
+# Instancia a planta (parâmetros padrão)
+planta = PenduloInvertido(M=1.0, m=0.5, l=0.5, g=9.81, b_c=40, b_p=0.1)
 
-    Aplica a Fórmula de Bass-Gura para encontrar o vetor de ganhos K 
-    que aloca os polos de um sistema linear de única entrada (SISO).
-"""
-function bass_gura(A::Matrix{Float64}, B::Vector{Float64}, polos_desejados::Vector{<:Number})
-    n = size(A, 1)
-    
-    # a) Matriz de Controlabilidade P = [B, AB, A²B, ..., A^(n-1)B]
-    P = zeros(n, n)
-    P[:, 1] = B
-    for i in 2:n
-        P[:, i] = A * P[:, i-1]
-    end
-    
-    if abs(det(P)) < 1e-8
-        error("O sistema não é controlável! Determinante da Matriz de Controlabilidade é zero.")
-    end
-    
-    # Função interna: Calcula os coeficientes do polinômio a partir das raízes
-    # Retorna [a_0, a_1, ..., a_n] onde a_n = 1
-    function poly_coefs(raizes)
-        p = zeros(ComplexF64, n + 1)
-        p[1] = 1.0 # Polinômio inicial: P(s) = 1 (s^0)
-        p_temp = zeros(ComplexF64, n + 1)
-        
-        for r in raizes
-            p_temp .= 0.0
-            # Multiplicar por s (desloca os coeficientes)
-            for i in 1:n
-                p_temp[i+1] += p[i]
-            end
-            # Multiplicar por -r
-            for i in 1:n
-                p_temp[i] -= r * p[i]
-            end
-            p .= p_temp
-        end
-        return real.(p) # Como sistemas físicos têm raízes conjugadas, a parte imaginária zera
-    end
-    
-    # b) Coeficientes de Malha Aberta (a_i)
-    lambdas_A = eigvals(A)
-    a_coefs = poly_coefs(lambdas_A)
-    
-    # c) Coeficientes de Malha Fechada Desejados (alpha_i)
-    alpha_coefs = poly_coefs(polos_desejados)
-    
-    # d) Matriz W (Toeplitz superior modificada com os coeficientes de malha aberta)
-    W = zeros(n, n)
-    for i in 1:n
-        for j in 1:n
-            k = i + j
-            if k <= n + 1
-                W[i, j] = a_coefs[k] # Lembre-se: índice k = 1 corresponde a a_0, etc.
-            else
-                W[i, j] = 0.0
-            end
-        end
-    end
-    
-    # e) Diferença dos coeficientes: [alpha_0 - a_0, ..., alpha_{n-1} - a_{n-1}]
-    diff_coefs = alpha_coefs[1:n] - a_coefs[1:n]
-    
-    # f) Aplicação da Fórmula de Bass-Gura: K = Δa^T * (P * W)^-1
-    K_transposto = diff_coefs' * inv(P * W)
-    
-    return K_transposto' # Retornamos um vetor (n x 1)
-end
-
-# =======================================================================
-# 3. DEFINIÇÃO DA PLANTA (PÊNDULO INVERTIDO)
-# =======================================================================
-# Adaptando a struct do seu frame work para simulação local
-struct PenduloInvertido
-    M::Float64   # Massa do carrinho
-    m::Float64   # Massa do pêndulo
-    l::Float64   # Comprimento da haste
-    g::Float64   # Gravidade
-    b::Float64   # Atrito
-    numEstados::Int
-    dinamica!::Function
-end
-
-function pendulo_dinamica!(dx, x, p, t; u=0.0)
-    # Estados: x1 = p, x2 = p_ponto, x3 = theta (0 para cima), x4 = theta_ponto
-    M, m, l, g, b = p.M, p.m, p.l, p.g, p.b
-    
-    x1, x2, x3, x4 = x[1], x[2], x[3], x[4]
-    
-    # Dinâmica Não-Linear
-    sen_t = sin(x3)
-    cos_t = cos(x3)
-    denominador = M + m - m * cos_t^2
-    
-    dx[1] = x2
-    dx[2] = (u + m * l * x4^2 * sen_t - m * g * sen_t * cos_t - b * x2) / denominador
-    dx[3] = x4
-    dx[4] = ((M + m) * g * sen_t - cos_t * (u + m * l * x4^2 * sen_t - b * x2)) / (l * denominador)
-end
-
-# =======================================================================
-# 4. EXECUÇÃO DO PROJETO
-# =======================================================================
-# Instancia a planta
-planta_pendulo = PenduloInvertido(1.0, 0.1, 0.5, 9.81, 0.1, 4, pendulo_dinamica!)
-
-# Define o ponto de operação (Pêndulo equilibrado para cima)
+# Ponto de Operação (Equilíbrio instável: haste para cima)
 x_eq = [0.0, 0.0, 0.0, 0.0]
 u_eq = [0.0]
 
-# Extrai o modelo linear
-println("1. Linearizando o Sistema...")
-A, B_mat, C, D = linearizar_sistema(planta_pendulo, x_eq, u_eq)
-B = B_mat[:, 1] # Converte para vetor coluna unidimensional exigido por Bass-Gura
+# Linearização automática
+A, B_mat, _, _ = linearizar(planta, x_eq, u_eq)
+B = B_mat[:, 1]
 
-display(A)
-display(B)
+# Projeto de Ganhos via Bass-Gura
+polos_desejados = [-3.0, -3.1, -2.0 + 1.5im, -2.0 - 1.5im]
+K_vetor = bass_gura(A, B, polos_desejados)
 
-# Define onde queremos os polos do sistema em malha fechada
-# (Exemplo: Polos reais e conjugados estáveis)
-polos_alvo = [-2.0 + 1.0im, -2.0 - 1.0im, -3.0, -4.0]
+# Matriz K para malha fechada (1 x 4)
+K_matriz = K_vetor' 
 
-println("\n2. Calculando Ganhos via Bass-Gura...")
-K = bass_gura(A, B, polos_alvo)
+# =========================================================================
+# 2. MONTAGEM DOS SISTEMAS (ABERTA E FECHADA)
+# =========================================================================
 
-println("\nVetor de Ganhos K encontrado:")
-display(K')
+# Referência: queremos que o sistema fique parado no zero (origem)
+ref = [1.0, 0.0, 0.0, 0.0]
 
-println("\n3. Validando Polos de Malha Fechada (A - B*K):")
-A_fechada = A - B * K'
-polos_obtidos = eigvals(A_fechada)
-display(polos_obtidos)
+# A) Malha Aberta (Ganho K = 0) -> Ação de controle será sempre nula
+ctrl_aberto = RealimentacaoEstado(zeros(1, 4))
+sys_aberto  = conectar(planta, ctrl_aberto, ref)
+
+# B) Malha Fechada (Ganho K calculado por Bass-Gura)
+ctrl_fechado = RealimentacaoEstado(K_matriz)
+sys_fechado  = conectar(planta, ctrl_fechado, ref)
+
+# =========================================================================
+# 3. EXECUÇÃO DAS SIMULAÇÕES
+# =========================================================================
+
+# Condição inicial: carrinho no zero, haste levemente inclinada (10 graus = 0.17 rad)
+x0_fisico = [0.0, 0.0, 0.17, 0.0]
+x0_total  = condicoesIniciais(sys_fechado, x0_fisico) # A mesma dimensão para ambos
+
+tspan = (0.0, 10.0)
+
+println("\nSimulando Malha Aberta...")
+sol_aberta = resolverSistema(sys_aberto, x0_total, tspan)
+
+println("Simulando Malha Fechada...")
+sol_fechada = resolverSistema(sys_fechado, x0_total, tspan)
+
+# =========================================================================
+# 4. ANÁLISE E COMPARAÇÃO DOS RESULTADOS
+# =========================================================================
+
+println("\n--- Relatório de Estabilização ---")
+println("Polos de malha aberta: ", round.(eigvals(A), digits=2))
+println("Polos de malha fechada reais: ", round.(eigvals(A - B*K_matriz), digits=2))
+
+# 4.1 Gráficos da Malha Aberta
+plotarNoTempo(sol_aberta, titulo="Malha Aberta - Pêndulo Caindo", estados=(1, 3))
+plotarRetratoFase(sol_aberta, estados=(1,3))
+# plotarRetratoFaseCompleto(sol_aberta, titulo="Retrato de Fase - Malha Aberta")
+
+# 4.2 Gráficos da Malha Fechada
+plotarNoTempo(sol_fechada, titulo="Malha Fechada - Estabilização (Bass-Gura)", estados=(1, 3))
+plotarRetratoFase(sol_fechada, estados=(1,3))
+# plotarRetratoFaseCompleto(sol_fechada, titulo="Retrato de Fase - Malha Fechada")

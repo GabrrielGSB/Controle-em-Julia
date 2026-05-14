@@ -42,7 +42,8 @@ include("../Abstrações/Interfaces.jl")
         m               ::Float64
         l               ::Float64
         g               ::Float64
-        b               ::Float64
+        b_c             ::Float64 # Atrito do carrinho
+        b_p             ::Float64 # NOVO: Atrito da haste
         estadosIniciais ::Vector{Float64}
         numEstados      ::Int
         variaveisEstado ::Tuple{String, String, String, String}
@@ -54,10 +55,11 @@ include("../Abstrações/Interfaces.jl")
                 m = 0.1, 
                 l = 0.5, 
                 g = 9.81, 
-                b = 0.1, 
+                b_c = 0.1, 
+                b_p = 0.01,
                 estadosIniciais = [0.0, 0.0, 0.1, 0.0]
             )
-            new(M, m, l, g, b, estadosIniciais,
+            new(M, m, l, g, b_c, b_p, estadosIniciais,
                 4,
                 ("Posição Carro (m)", "Velocidade Carro (m/s)", "Ângulo (rad)", "Velocidade Angular (rad/s)"),
                 "Pêndulo Invertido no Carrinho",
@@ -74,7 +76,7 @@ include("../Abstrações/Interfaces.jl")
     """
     function pendulo_invertido!(dx, x, p::PenduloInvertido, t; u=0.0)
         # Extração de parâmetros para limpeza das equações
-        M, m, l, g, b = p.M, p.m, p.l, p.g, p.b
+        M, m, l, g, b_c, b_p = p.M, p.m, p.l, p.g, p.b_c, p.b_p
         
         # Extração dos estados
         x_c = x[1]
@@ -91,11 +93,11 @@ include("../Abstrações/Interfaces.jl")
         
         # Dinâmica translacional do carrinho
         dx[1] = v_c
-        dx[2] = (u - b*v_c + m*l*(ω^2)*senθ - m*g*senθ*cosθ) / D
+        dx[2] = (u - b_c*v_c + m*l*(ω^2)*senθ - m*g*senθ*cosθ + (b_p/l)*ω*cosθ) / D
         
         # Dinâmica rotacional do pêndulo
         dx[3] = ω
-        dx[4] = ((M + m)*g*senθ - cosθ*(u - b*v_c + m*l*(ω^2)*senθ)) / (l * D)
+        dx[4] = ((M + m)*g*senθ - cosθ*(u - b_c*v_c + m*l*(ω^2)*senθ) - (b_p*(M+m)/(m*l))*ω) / (l * D)
     end
 # =========================================================================
 

@@ -68,7 +68,7 @@ using Printf
 
 # =========================================================
 # 3.1 MODELO POLINOMIAL ADIMENSIONAL (com referência)
-    θ_ref = 0
+    θ_ref = 3.14
 
     @polyvar x1 x2 u_sym
 
@@ -105,7 +105,7 @@ using Printf
     # u_ndim = K_ndim · [x₁, x₂]
     # u_dim  = u_ndim · (m·L²·ω₀²)
     # u_dim  = K_ndim · (m·L²·ω₀²) · [x₁, x₂]
-    #        = K_dim · [x₁, x₂]
+    #        = K_dim  · [x₁, x₂]
 
     escala_u = m * L^2 * ω0^2    # = m·L²·ω₀² = m·g·L  (= I·ω₀²)
 
@@ -233,32 +233,32 @@ using Printf
 
 # =========================================================
 # 10. COMPARAÇÃO COM PID
-    include("../../Controladores/PID.jl")
-    include("../../Abstrações/MalhaFechada.jl")
+    # include("../../Controladores/PID.jl")
+    # include("../../Abstrações/MalhaFechada.jl")
 
-    pendulo_planta = Pendulo(
-        comprimento     = L,
-        massa           = m,
-        coefAtrito      = β,
-        estadosIniciais = x0
-    )
+    # pendulo_planta = Pendulo(
+    #     comprimento     = L,
+    #     massa           = m,
+    #     coefAtrito      = β,
+    #     estadosIniciais = x0
+    # )
 
-    pid_ref = PID(Kp = 30.0, Ki = 5.0, Kd = 8.0)
-    sys_pid = conectar(pendulo_planta, pid_ref, 0.0)
-    x0_pid  = condicoesIniciais(sys_pid, x0)
-    sol_pid = resolverSistema(sys_pid, x0_pid, tspan; resolucao=0.005)
+    # pid_ref = PID(Kp = 30.0, Ki = 5.0, Kd = 8.0)
+    # sys_pid = conectar(pendulo_planta, pid_ref, 0.0)
+    # x0_pid  = condicoesIniciais(sys_pid, x0)
+    # sol_pid = resolverSistema(sys_pid, x0_pid, tspan; resolucao=0.005)
 
-    println("\n─── Comparação de Ganhos ─────────────────────────────────")
-    @printf("  K DBC  →  K₁ = %+.4f   K₂ = %+.4f\n", K1, K2)
-    @printf("  PID    →  Kp = %.1f   Ki = %.1f   Kd = %.1f\n",
-            pid_ref.Kp, pid_ref.Ki, pid_ref.Kd)
-    println("──────────────────────────────────────────────────────────\n")
+    # println("\n─── Comparação de Ganhos ─────────────────────────────────")
+    # @printf("  K DBC  →  K₁ = %+.4f   K₂ = %+.4f\n", K1, K2)
+    # @printf("  PID    →  Kp = %.1f   Ki = %.1f   Kd = %.1f\n",
+    #         pid_ref.Kp, pid_ref.Ki, pid_ref.Kd)
+    # println("──────────────────────────────────────────────────────────\n")
 
-    compararControladores(
-        [sol_pid, sol_fechada],
-        ["PID (referência)", "DBC (SOS)"];
-        referencia = 0.0,
-        idx_estado = 1,
-        banda      = 0.05
-    )
+    # compararControladores(
+    #     [sol_pid, sol_fechada],
+    #     ["PID (referência)", "DBC (SOS)"];
+    #     referencia = 0.0,
+    #     idx_estado = 1,
+    #     banda      = 0.05
+    # )
 # =========================================================

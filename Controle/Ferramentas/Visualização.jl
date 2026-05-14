@@ -444,3 +444,75 @@ function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
 
     display(plot(traces, layout))
 end
+
+"""
+    plotarRetratoFaseCompleto(resultado; titulo)
+    
+    Versão especializada para analisar a solução de sistemas de 4ª ordem (ex: Pêndulo Invertido).
+    Gera dois retratos de fase lado a lado extraindo as trajetórias simuladas, sem calcular 
+    campo vetorial.
+    1. Dinâmica do Carrinho (Posição x Velocidade)
+    2. Dinâmica da Haste (Ângulo x Vel. Angular)
+"""
+function plotarRetratoFaseCompleto(resultado::Union{SciMLBase.ODESolution, NamedTuple}; 
+                                   titulo="Retrato de Fase Completo (Pêndulo Invertido)")
+    
+    # Desempacota o resultado (suporta retorno com ou sem o histórico de controle 'u')
+    tem_controle = resultado isa NamedTuple && hasproperty(resultado, :solucao)
+    solucao = tem_controle ? resultado.solucao : resultado
+
+    # Extrai os 4 estados ao longo do tempo da matriz de solução
+    p     = [u[1] for u in solucao.u] # Posição
+    v     = [u[2] for u in solucao.u] # Velocidade
+    theta = [u[3] for u in solucao.u] # Ângulo
+    omega = [u[4] for u in solucao.u] # Vel. Angular
+
+    # Cria a figura com 2 subplots lado a lado
+    fig = make_subplots(
+        rows=1, cols=2, 
+        subplot_titles=["Dinâmica do Carrinho", "Dinâmica da Haste"]
+    )
+
+    # ==========================================
+    # GRÁFICO 1: CARRINHO (Posição x Velocidade)
+    # ==========================================
+    # Trajetória contínua
+    add_trace!(fig, scatter(x=p, y=v, mode="lines", name="Trajetória Carrinho", 
+                            line=attr(color="#2A5FCA", width=2.5)), row=1, col=1)
+    
+    # Marcador de Início (Verde) e Fim (Vermelho em X)
+    add_trace!(fig, scatter(x=[p[1]], y=[v[1]], mode="markers", 
+                            marker=attr(color="green", size=10), name="Início"), row=1, col=1)
+    add_trace!(fig, scatter(x=[p[end]], y=[v[end]], mode="markers", 
+                            marker=attr(color="red", size=10, symbol="x"), name="Fim"), row=1, col=1)
+
+    # ==========================================
+    # GRÁFICO 2: HASTE (Ângulo x Vel. Angular)
+    # ==========================================
+    # Trajetória contínua
+    add_trace!(fig, scatter(x=theta, y=omega, mode="lines", name="Trajetória Haste", 
+                            line=attr(color="#D05030", width=2.5)), row=1, col=2)
+    
+    # Marcador de Início (Verde) e Fim (Vermelho em X) - Oculta legenda para não duplicar
+    add_trace!(fig, scatter(x=[theta[1]], y=[omega[1]], mode="markers", 
+                            marker=attr(color="green", size=10), showlegend=false), row=1, col=2)
+    add_trace!(fig, scatter(x=[theta[end]], y=[omega[end]], mode="markers", 
+                            marker=attr(color="red", size=10, symbol="x"), showlegend=false), row=1, col=2)
+
+    # ==========================================
+    # CONFIGURAÇÃO DE LAYOUT
+    # ==========================================
+    relayout!(fig, 
+        title_text=titulo, 
+        title_x=0.5,
+        xaxis=attr(title="Posição (m)", zeroline=true, zerolinecolor="#aaa"), 
+        yaxis=attr(title="Velocidade (m/s)", zeroline=true, zerolinecolor="#aaa"),
+        xaxis2=attr(title="Ângulo (rad)", zeroline=true, zerolinecolor="#aaa"), 
+        yaxis2=attr(title="Vel. Angular (rad/s)", zeroline=true, zerolinecolor="#aaa"),
+        width=950, height=500,
+        plot_bgcolor="#f8f7f4",
+        hovermode="closest"
+    )
+
+    display(fig)
+end

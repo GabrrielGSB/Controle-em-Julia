@@ -39,10 +39,14 @@ include("Interfaces.jl")
             sys = conectar(pendulo, pid, π)
             sys = conectar(pendulo, lqr, [1.0, 0.0])
     """
-    function conectar(; planta::Planta, controlador::Controlador, referencia, idx_saida=1)
+    function conectar(planta::Planta, controlador::Controlador, referencia, idx_saida=nothing)
         ref = (referencia isa Vector) ? referencia : [Float64(referencia)]
 
-        idx_s = (idx_saida isa Vector) ? idx_saida : [Int(idx_saida)]
+        if idx_saida === nothing
+            idx_s = collect(1:planta.numEstados)
+        else
+            idx_s = (idx_saida isa Vector) ? idx_saida : [Int(idx_saida)]
+        end
 
         return MalhaFechada(planta,
                             controlador,
