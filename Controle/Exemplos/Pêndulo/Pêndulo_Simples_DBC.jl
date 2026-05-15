@@ -15,6 +15,7 @@
 using DynamicPolynomials
 using Printf
 
+
 # =========================================================
 # INCLUDES
     include("../../SistemasLTI/Pêndulo.jl")
@@ -28,13 +29,12 @@ using Printf
 # 1. PARÂMETROS FÍSICOS
     L = 1.0
     m = 1.0
-    β = 0.1
+    β = 0.7
     g = 9.81
 
     I = m * L^2
 
     x0    = [π/4, 0.0]
-    tspan = (0.0, 20.0)
 # =========================================================
 
 # =========================================================
@@ -53,7 +53,7 @@ using Printf
     #   u_dim = u_ndim · (m·L²·ω₀²)
     #   K_dim = K_ndim / (m·L²·ω₀²)   ← divide porque u_dim = K_dim·h(x)
 
-    ω0     = sqrt(g / L)        # frequência natural 
+    ω0     = sqrt(g / L) # frequência natural 
     β_ndim = β / (m * L^2 * ω0)    
 # =========================================================
 
@@ -68,7 +68,7 @@ using Printf
 
 # =========================================================
 # 3.1 MODELO POLINOMIAL ADIMENSIONAL (com referência)
-    θ_ref = 3.14
+    θ_ref = π
 
     @polyvar x1 x2 u_sym
 
@@ -79,7 +79,7 @@ using Printf
     
     f_error = termo_linear + termo_quad + termo_cubico
 
-    f = [ x2, f_error - β_ndim * x2 ]
+    f = [x2, f_error - β_ndim * x2]
     g = [0.0, 1.0]  
     h = [x1, x2]
 # =========================================================
@@ -147,22 +147,17 @@ using Printf
     function pendulo_dbc_mf!(dx, x, p::PenduloDBCParams, t)
         I = p.m * p.L^2
         
-        # 1. Mudança de coordenadas (Cálculo do Erro)
         x_tilde1 = x[1] - p.θ_ref
-        x_tilde2 = x[2] - 0.0 # A velocidade alvo é sempre zero
+        x_tilde2 = x[2] - 0.0 
         
-        # 2. Esforço dinâmico realimentado (SOS)
         u_dinamico = p.K1 * x_tilde1 + p.K2 * x_tilde2
         
-        # 3. Esforço de regime (vencer a gravidade no alvo)
         # Torque físico constante necessário: m * g * L * sin(θ_ref)
         u_ss = p.m * 9.81 * p.L * sin(p.θ_ref)
         
-        # 4. Controle total aplicado no motor
         u = u_dinamico + u_ss
 
         dx[1] = x[2]
-        # Aplica a física EXATA (sin(x[1])) usando o controle total
         dx[2] = (-p.m * 9.81 * p.L * sin(x[1]) - p.β * x[2] + u) / I
     end
 
@@ -184,34 +179,32 @@ using Printf
                               θ_ref = θ_ref,
                               estadosIniciais = x0)
 
+    tspan = (0.0, 10.0)
     sol_aberta  = resolverSistema(pendulo_aberta!,   x0, tspan, params; resolucao=0.005)
     sol_fechada = resolverSistema(pendulo_dbc_mf!,   x0, tspan, params; resolucao=0.005)
 # =========================================================
 
 # =========================================================
 # 8. VISUALIZAÇÃO
-    plotarNoTempo(
-        [sol_aberta, sol_fechada];
-        nomes   = ["Malha Aberta", "DBC (SOS)"],
-        titulo  = "Pêndulo — Comparação Temporal: Sem Controle vs. DBC",
-        estados = 1:2
-    )
+    plotarNoTempo([sol_aberta, sol_fechada];
+                  nomes   = ["Malha Aberta", "DBC (SOS)"],
+                  titulo  = "Pêndulo — Comparação Temporal: Sem Controle vs. DBC",
+                  estados = 1:2)
 
-    plotarRetratoFase(
-        [sol_aberta, sol_fechada];
-        estados = (1, 2),
-        nomes   = ["Malha Aberta", "DBC (SOS)"],
-        titulo  = "Pêndulo — Retrato de Fase (θ × ω)"
-    )
+    plotarRetratoFase([sol_aberta, sol_fechada];
+                      estados = (1, 2),
+                      nomes   = ["Malha Aberta", "DBC (SOS)"],
+                      titulo  = "Pêndulo — Retrato de Fase (θ × ω)")
 
     plotarRetratoFaseCompleto(
         pendulo_dbc_mf!, params;
-        limiteEixo         = 2.0,
-        densidadeSetas     = 18,
-        raiosIniciais      = [0.3, 0.8, 1.4],
-        trajetoriasPorAnel = 3,
+        limiteX            = (-1, 5.0),
+        limiteY            = (-0.2, 1.0),
+        densidadeSetas     = 0,
+        raiosIniciais      = [0.7, 1.5, 2.6, π, π+0.5],
+        trajetoriasPorAnel = 1,
         tempoMaximo        = 15.0,
-        titulo             = "Pêndulo DBC — Campo Vetorial em Malha Fechada"
+        titulo             = "Pêndulo - Campo Vetorial em Malha Fechada com Referência"
     )
 # =========================================================
 

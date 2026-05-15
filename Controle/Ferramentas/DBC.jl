@@ -1,12 +1,3 @@
-# Controle/Ferramentas/DBC.jl
-#
-# Otimização SOS via Recurrent Dissipativity-Based Conditions (DBCs)
-# Referência: Madeira & Machado, MICNON 2024
-#
-# USO:
-#   K = otimizarDBC(f, g, h, vars_x, u_var)
-#   K = otimizarDBC(f, g, h, vars_x, u_var; imax=100, dim_u=1)
-
 using JuMP
 using SumOfSquares
 using DynamicPolynomials

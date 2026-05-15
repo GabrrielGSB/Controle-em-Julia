@@ -118,7 +118,8 @@ function plotarNoTempo(solucoes::AbstractVector;
     paleta = ["#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b"]
     
     # 2. Cria os títulos dos subplots dinamicamente 
-    titulos_subplots = reshape(["Evolução de x$i" for i in estados], 1, num_graficos)
+    # titulos_subplots = reshape(["Evolução de x$i" for i in estados], 1, num_graficos)
+    titulos_subplots = reshape(["Evolução de θ","Evolução de dθ"], 1, num_graficos)
     
     # 3. Cria o layout de subplots dinâmico
     fig = make_subplots(
@@ -329,7 +330,8 @@ function plotarRetratoFase(solucoes::AbstractVector;
 end
 
 function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
-                                   limiteEixo         = 3.0,
+                                   limiteX            = (-3.0, 3.0),  # Agora aceita (min, max) para X
+                                   limiteY            = (-3.0, 3.0),  # Agora aceita (min, max) para Y
                                    densidadeSetas     = 18,
                                    raiosIniciais      = [0.5, 1.5, 2.5],
                                    trajetoriasPorAnel = 10,
@@ -337,7 +339,13 @@ function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
                                    titulo             = "Retrato de Fase - Campo Vetorial")
 
     traces = GenericTrace[]
-    escala = (2*limiteEixo / densidadeSetas) * 0.55
+    
+    # Calculamos a amplitude de cada eixo para ajustar a escala e os ticks
+    amplitudeX = limiteX[2] - limiteX[1]
+    amplitudeY = limiteY[2] - limiteY[1]
+    
+    # A escala das setas baseia-se na maior dimensão para manter a proporção visual correta
+    escala = (max(amplitudeX, amplitudeY) / densidadeSetas) * 0.55
 
     # Adaptador: chama dinamica no formato DiffEq para obter (dx1, dx2)
     function avaliar(x1, x2)
@@ -347,8 +355,8 @@ function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
     end
 
     # --- Campo Vetorial ---
-    xs = range(-limiteEixo, limiteEixo, length=densidadeSetas)
-    ys = range(-limiteEixo, limiteEixo, length=densidadeSetas)
+    xs = range(limiteX[1], limiteX[2], length=densidadeSetas)
+    ys = range(limiteY[1], limiteY[2], length=densidadeSetas)
 
     for x in xs, y in ys
         dx, dy = avaliar(x, y)
@@ -384,6 +392,8 @@ function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
               "#5F8FD0","#40A860","#E07050","#A070D0","#40A0B8","#D06080"]
 
     idxCor = 1
+    # Nota: As trajetórias continuam partindo em círculos baseados nos raiosIniciais.
+    # Se os eixos forem muito desproporcionais, esses "círculos" aparecerão como elipses.
     for raio in raiosIniciais
         angulos = range(0, 2π, length=trajetoriasPorAnel+1)[1:end-1]
         for a in angulos
@@ -425,18 +435,18 @@ function plotarRetratoFaseCompleto(dinamica, parametros=nothing;
         title_text=titulo, title_x=0.5,
         xaxis=attr(
             title="x₁",
-            range=[-limiteEixo, limiteEixo],
+            range=[limiteX[1], limiteX[2]],
             zeroline=true, zerolinecolor="#aaa", gridcolor="#ddd",
             tickmode="linear",
-            dtick=round(limiteEixo/3, digits=1),
+            dtick=round(amplitudeX/6, digits=1), # Espaçamento dinâmico dos ticks
             showticklabels=true
         ),
         yaxis=attr(
             title="x₂",
-            range=[-limiteEixo, limiteEixo],
+            range=[limiteY[1], limiteY[2]],
             zeroline=true, zerolinecolor="#ddd", gridcolor="#ddd",
             tickmode="linear",
-            dtick=round(limiteEixo/3, digits=1),
+            dtick=round(amplitudeY/6, digits=1), # Espaçamento dinâmico dos ticks
             showticklabels=true
         ),
         width=700, height=700, plot_bgcolor="#f8f7f4", showlegend=true
