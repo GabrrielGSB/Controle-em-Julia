@@ -100,10 +100,11 @@ end
         imprimirRelatorio(m)
 """
 function analisarPerformance(solucao;
-                              referencia  ::Real    = 0.0,
-                              idx_estado  ::Int     = 1,
-                              u_historico ::Union{Vector{Float64}, Nothing} = nothing,
-                              banda       ::Float64 = 0.02)
+                              referencia   ::Real    = 0.0,
+                              idx_estado   ::Int     = 1,
+                              idx_controle ::Int     = 1,       # Novo parâmetro (default = 1)
+                              u_historico            = nothing, # Removida a tipagem estrita
+                              banda        ::Float64 = 0.02)
 
     t    = solucao.t
     y    = [u[idx_estado] for u in solucao.u]
@@ -142,7 +143,16 @@ function analisarPerformance(solucao;
     if u_historico !== nothing
         @assert length(u_historico) == n "u_historico deve ter o mesmo comprimento que solucao.t"
 
-        u = u_historico
+        # TRATAMENTO MÁGICO AQUI: 
+        # Verifica se é um array de arrays (ex: Vector{Vector{Float64}})
+        if eltype(u_historico) <: AbstractVector
+            # Extrai apenas o sinal referente ao idx_controle
+            u = Float64.([u_val[idx_controle] for u_val in u_historico])
+        else
+            # Se já for um vetor 1D simples, apenas garante que é Float64
+            u = Float64.(u_historico)
+        end
+
         du = diff(u) ./ dt
 
         energia_controle = _integrar(u .^ 2, t)
@@ -170,7 +180,6 @@ function analisarPerformance(solucao;
         t[end]
     )
 end
-
 # =========================================================================
 # COMPARAÇÃO DE MÚLTIPLOS CONTROLADORES
 # =========================================================================

@@ -22,26 +22,23 @@
 
 # =========================================================
 # SIMULAÇÃO
-    sys = conectar(planta      = pendulo, 
-                   controlador = pid, 
-                   referencia  = π, 
-                   idx_saida   = [1, 2])
+    sys = conectar(pendulo, pid, π, [1, 2])
                    
     x0  = condicoesIniciais(sys, [1.0, 0.0]) 
     
     t_simu = 10.0  
     sol = resolverSistema(sys, x0, (0.0, t_simu),
                           resolucao=0.01,
-                          salvar_controle=false)
+                          salvar_controle=true)
 # =========================================================
 
 # =========================================================
 # VISUALIZAÇÃO E ANÁLISE
-    plotarNoTempo(sol, titulo="PID no Pêndulo Simples", 
-                  estados=(1), 
-                  mostrar_controle=false)
+    # plotarNoTempo(sol, titulo="PID no Pêndulo Simples", 
+    #               estados=(1), 
+    #               mostrar_controle=true)
 
-    # m = analisarPerformance(sol, referencia=π, idx_estado=1); imprimirRelatorio(m)
+    m = analisarPerformance(sol.solucao, referencia=π, idx_estado=1, u_historico = sol.u); imprimirRelatorio(m)
 
     # gerarAnimacao(sol, pendulo, 30, mostrar_controle=false)
 # =========================================================
