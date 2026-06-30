@@ -285,16 +285,56 @@
         println("\n╚══════════════════════════════════════════════════════════════════╝\n")
     end
 
-    function plotarTrajetoria3D(sol, trajetoria, tspan; titulo = "LQR Cascata — Trajetória 3D")
-        t_vec = sol.t
-        refs  = [trajetoria(t) for t in t_vec]
-        X_r = [r.X for r in refs];  Y_r = [r.Y for r in refs];  Z_r = [r.Z for r in refs]
-        X   = [u[1] for u in sol.u]; Y = [u[2] for u in sol.u]; Z = [u[3] for u in sol.u]
+    function plotarTrajetoria3D(solucao, trajetoria, tspan; titulo="Seguimento de Trajetória 3D")
+        t_vec = solucao.t
 
-        display(plot([
-            scatter3d(x=X_r, y=Y_r, z=Z_r, mode="lines", name="Referência", line=attr(color="#d62728", width=3, dash="dash")),
-            scatter3d(x=X,   y=Y,   z=Z,   mode="lines", name="Drone (real)", line=attr(color="#1f77b4", width=4)),
-        ], Layout(title_text=titulo, title_x=0.5, scene=attr(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)"), width=850, height=650)))
+        # Trajetória real do drone
+        X_real = [u[1] for u in solucao.u]
+        Y_real = [u[2] for u in solucao.u]
+        Z_real = [u[3] for u in solucao.u]
+
+        # Trajetória de referência amostrada
+        refs = [trajetoria(t) for t in t_vec]
+        X_ref = [r.X for r in refs]
+        Y_ref = [r.Y for r in refs]
+        Z_ref = [r.Z for r in refs]
+
+        trace_real = scatter3d(
+            x=X_real, y=Y_real, z=Z_real,
+            mode="lines",
+            name="Drone (real)",
+            line=attr(color="#1f77b4", width=4)
+        )
+        trace_ref = scatter3d(
+            x=X_ref, y=Y_ref, z=Z_ref,
+            mode="lines",
+            name="Referência",
+            line=attr(color="#d62728", width=3, dash="dash")
+        )
+        trace_inicio = scatter3d(
+            x=[X_real[1]], y=[Y_real[1]], z=[Z_real[1]],
+            mode="markers",
+            name="Início",
+            marker=attr(size=6, color="green")
+        )
+        trace_fim = scatter3d(
+            x=[X_real[end]], y=[Y_real[end]], z=[Z_real[end]],
+            mode="markers",
+            name="Fim",
+            marker=attr(size=6, color="red", symbol="x")
+        )
+
+        layout = Layout(
+            title_text=titulo, title_x=0.5,
+            scene=attr(
+                xaxis_title="X (m)",
+                yaxis_title="Y (m)",
+                zaxis_title="Z (m)"
+            ),
+            width=850, height=650
+        )
+
+        display(plot([trace_real, trace_ref, trace_inicio, trace_fim], layout))
     end
 
     function plotarRespostaCompleta(sol, trajetoria; titulo="LQR Cascata — Resposta Completa")
@@ -322,32 +362,126 @@
         relayout!(fig, title_text=titulo, title_x=0.5, height=750, width=1000, hovermode="x unified")
         display(fig)
     end
+
+    function plotarAtitudeEmpuxo(solucao, trajetoria)
+        t_vec = solucao.t
+
+        # Estados de posição e orientação (drone)
+        X_hist  = [u[1] for u in solucao.u]
+        Y_hist  = [u[2] for u in solucao.u]
+        Z_hist  = [u[3] for u in solucao.u]
+        Ψ_hist  = [u[9] for u in solucao.u]
+
+        # Referências provenientes da trajetória
+        refs = [trajetoria(t) for t in t_vec]
+        X_ref = [r.X for r in refs]
+        Y_ref = [r.Y for r in refs]
+        Z_ref = [r.Z for r in refs]
+        Ψ_ref = [r.Ψ for r in refs]
+
+        # CORREÇÃO AQUI: Transformando os títulos em uma Matriz 4x1
+        titulos = reshape(["Posição X (m)", "Posição Y (m)", "Altitude Z (m)", "Yaw Ψ (rad)"], 4, 1)
+
+        fig = make_subplots(rows=4, cols=1,
+                            shared_xaxes=true, vertical_spacing=0.08,
+                            subplot_titles=titulos)
+
+        # X
+        add_trace!(fig, scatter(x=t_vec, y=X_hist, name="X (drone)",
+                                line=attr(color="#1f77b4", width=2)), row=1, col=1)
+        add_trace!(fig, scatter(x=t_vec, y=X_ref,  name="X_ref",
+                                line=attr(color="red", dash="dash", width=2)), row=1, col=1)
+        # Y
+        add_trace!(fig, scatter(x=t_vec, y=Y_hist, name="Y (drone)",
+                                line=attr(color="#2ca02c", width=2)), row=2, col=1)
+        add_trace!(fig, scatter(x=t_vec, y=Y_ref,  name="Y_ref",
+                                line=attr(color="red", dash="dash", width=2)), row=2, col=1)
+        # Z
+        add_trace!(fig, scatter(x=t_vec, y=Z_hist, name="Z (drone)",
+                                line=attr(color="#d62728", width=2)), row=3, col=1)
+        add_trace!(fig, scatter(x=t_vec, y=Z_ref,  name="Z_ref",
+                                line=attr(color="red", dash="dash", width=2)), row=3, col=1)
+        # Ψ
+        add_trace!(fig, scatter(x=t_vec, y=Ψ_hist, name="Ψ (drone)",
+                                line=attr(color="#9467bd", width=2)), row=4, col=1)
+        add_trace!(fig, scatter(x=t_vec, y=Ψ_ref,  name="Ψ_ref",
+                                line=attr(color="red", dash="dash", width=2)), row=4, col=1)
+
+        relayout!(fig, title_text="Estados do Drone vs Referência",
+                  title_x=0.5, height=900, width=800, hovermode="x unified")
+        relayout!(fig, xaxis4_title="Tempo (s)")
+        display(fig)
+    end
+
+    function plotarErrosRastreamento(solucao, trajetoria; titulo="Erros de Rastreamento")
+        t_vec = solucao.t
+
+        refs   = [trajetoria(t) for t in t_vec]
+        e_X    = [refs[i].X - solucao.u[i][1] for i in eachindex(t_vec)]
+        e_Y    = [refs[i].Y - solucao.u[i][2] for i in eachindex(t_vec)]
+        e_Z    = [refs[i].Z - solucao.u[i][3] for i in eachindex(t_vec)]
+        erro_3d = [sqrt(e_X[i]^2 + e_Y[i]^2 + e_Z[i]^2) for i in eachindex(t_vec)]
+
+        fig = make_subplots(rows=4, cols=1,
+                            shared_xaxes=true,
+                            vertical_spacing=0.08,
+                            subplot_titles=reshape(["Erro X (m)", "Erro Y (m)",
+                                                    "Erro Z (m)", "Erro Euclidiano 3D (m)"], 1, 4))
+
+        for (linha, (dados, cor, nome)) in enumerate([
+                (e_X,    "#1f77b4", "eₓ"),
+                (e_Y,    "#2ca02c", "e_Y"),
+                (e_Z,    "#d62728", "e_Z"),
+                (erro_3d,"#9467bd", "‖e‖₂")])
+            add_trace!(fig, scatter(x=t_vec, y=dados, mode="lines",
+                                    name=nome, line=attr(color=cor, width=2)),
+                    row=linha, col=1)
+            add_trace!(fig, scatter(x=[t_vec[1], t_vec[end]], y=[0.0, 0.0],
+                                    mode="lines", showlegend=false,
+                                    line=attr(color="black", width=1, dash="dot")),
+                    row=linha, col=1)
+        end
+
+        relayout!(fig, title_text=titulo, title_x=0.5,
+                height=800, width=800, hovermode="x unified")
+        relayout!(fig, xaxis4_title="Tempo (s)")
+        display(fig)
+    end
 # =========================================================
 
 # =========================================================
 # CONFIGURAÇÃO E EXECUÇÃO DO DRONE
-    drone = Drone(massa = 0.468, gravidade = 9.81, Ixx = 4.856e-3, 
-                Iyy = 4.856e-3, Izz = 8.801e-3, Ct = 2.980e-6, 
-                Cl = 1.14e-7, L = 0.225, estadosIniciais = zeros(12))
+    drone = Drone(
+        massa           = 0.777,
+        gravidade       = 9.81,
+        Ixx             = 0.0067,
+        Iyy             = 0.0059,
+        Izz             = 0.0116,
+        Ke              = 1.0547e-6,
+        Kr              = 7.4038e-9,
+        L               = 0.11,
+        estadosIniciais = zeros(12)
+    )
 
     # Ganhos LQR otimizados
     ctrl_atitude = construirAtitudeLQR(drone.Ixx, drone.Iyy, drone.Izz;
-        Q_roll  = [1028.4 0.0; 0.0 639.3], R_roll  = reshape([889.30], 1, 1),
-        Q_pitch = [1715.3 0.0; 0.0 18.2], R_pitch = reshape([290.02], 1, 1),
-        Q_yaw   = [551.1 0.0; 0.0 1393.3], R_yaw   = reshape([569.36], 1, 1))
+    Q_roll  = [5000.0 0.0; 0.0 10.0], R_roll  = reshape([405.58], 1, 1),
+    Q_pitch = [3224.8 0.0; 0.0 10.0], R_pitch = reshape([46.94], 1, 1),
+    Q_yaw   = [3666.3 0.0; 0.0 346.6], R_yaw   = reshape([320.58], 1, 1))
 
     ctrl_altitude = construirAltitudeLQR(drone.massa; gravidade=drone.gravidade,
-        Q_Z = [787.9 0.0; 0.0 796.9], R_Z = reshape([192.05], 1, 1))
+    Q_Z = [5000.0 0.0; 0.0 10.0], R_Z = reshape([0.10], 1, 1))
 
     ctrl_posicao = construirPosicaoLQR(gravidade=drone.gravidade;
-        Q_X = [1232.5 0.0; 0.0 2000.0], R_X = reshape([1598.71], 1, 1),
-        Q_Y = [410.2 0.0; 0.0 1270.9], R_Y = reshape([2000.00], 1, 1))
+    Q_X = [2578.1 0.0; 0.0 988.5], R_X = reshape([0.10], 1, 1),
+    Q_Y = [4548.2 0.0; 0.0 4849.6], R_Y = reshape([0.10], 1, 1))
+
     ctrl = ControladorCascataLQR(ctrl_posicao, ctrl_altitude, ctrl_atitude)
 
     imprimirRelatorioLQR(ctrl)
 
     # ── Opção: Hélice ─────────────────────────────────────────
-    tspan      = (0.0, 45.0)
+    tspan      = (0.0, 50.0)
     trajetoria = t -> trajetoriaHelice(t; raio=1.5, ω_giro=0.4, v_subida=0.08, t_espera=4.0)
     nome_traj  = "Hélice Ascendente"
 
@@ -355,5 +489,8 @@
     sol = resolverSistema(drone_lqr_cascata_mf!, zeros(12), tspan, params; resolucao=0.01)
 
     plotarTrajetoria3D(sol, trajetoria, tspan; titulo = "LQR Tracker — $nome_traj")
-    plotarRespostaCompleta(sol, trajetoria; titulo = "LQR Tracker — Estados e Referências ($nome_traj)")
+    # plotarRespostaCompleta(sol, trajetoria; titulo = "LQR Tracker — Estados e Referências ($nome_traj)")
+    plotarAtitudeEmpuxo(sol, trajetoria)
+
+    plotarErrosRastreamento(sol, trajetoria; titulo="Erros de Rastreamento")
 # =========================================================

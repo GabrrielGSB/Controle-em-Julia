@@ -168,9 +168,9 @@
         I_Φ = x[16];  I_θ = x[17];  I_Ψ = x[18]
 
         # ── Referência de trajetória ───────────────────────────────────
-        ref             = p.trajetoria(t)
+        ref            = p.trajetoria(t)
         X_r, Y_r, Z_r  = ref.X, ref.Y, ref.Z
-        Ψ_r             = ref.Ψ
+        Ψ_r            = ref.Ψ
 
         # ─────────────────────────────────────────────────────────────
         # MALHA EXTERNA — CONTROLE DE POSIÇÃO
@@ -194,13 +194,13 @@
 
         # PID X → aceleração inercial ax_des
         ax_des = c.pid_X.Kp * e_X +
-                c.pid_X.Ki * I_X +
-                c.pid_X.Kd * (-Vx_i)
+                 c.pid_X.Ki * I_X +
+                 c.pid_X.Kd * (-Vx_i)
 
         # PID Y → aceleração inercial ay_des
         ay_des = c.pid_Y.Kp * e_Y +
-                c.pid_Y.Ki * I_Y +
-                c.pid_Y.Kd * (-Vy_i)
+                 c.pid_Y.Ki * I_Y +
+                 c.pid_Y.Kd * (-Vy_i)
 
         # Desacoplamento XY: rotação de Ψ para obter ângulos do corpo
         #
@@ -222,13 +222,13 @@
         e_Ψ = atan(sin(Ψ_r - Ψ), cos(Ψ_r - Ψ))  # normalização para [-π, π]
 
         U2 = clamp(c.pid_Φ.Kp * e_Φ + c.pid_Φ.Ki * I_Φ + c.pid_Φ.Kd * (-VΦ),
-                -c.pid_Φ.lim, c.pid_Φ.lim)
+                 -c.pid_Φ.lim, c.pid_Φ.lim)
 
         U3 = clamp(c.pid_θ.Kp * e_θ + c.pid_θ.Ki * I_θ + c.pid_θ.Kd * (-Vθ),
-                -c.pid_θ.lim, c.pid_θ.lim)
+                 -c.pid_θ.lim, c.pid_θ.lim)
 
         U4 = clamp(c.pid_Ψ.Kp * e_Ψ + c.pid_Ψ.Ki * I_Ψ + c.pid_Ψ.Kd * (-VΨ),
-                -c.pid_Ψ.lim, c.pid_Ψ.lim)
+                 -c.pid_Ψ.lim, c.pid_Ψ.lim)
 
         # ─────────────────────────────────────────────────────────────
         # DINÂMICA DO DRONE (12 estados)
@@ -369,10 +369,12 @@
         Z_ref = [r.Z for r in refs]
         Ψ_ref = [r.Ψ for r in refs]
 
+        # CORREÇÃO AQUI: Transformando os títulos em uma Matriz 4x1
+        titulos = reshape(["Posição X (m)", "Posição Y (m)", "Altitude Z (m)", "Yaw Ψ (rad)"], 4, 1)
+
         fig = make_subplots(rows=4, cols=1,
                             shared_xaxes=true, vertical_spacing=0.08,
-                            subplot_titles=["Posição X (m)", "Posição Y (m)",
-                                            "Altitude Z (m)", "Yaw Ψ (rad)"])
+                            subplot_titles=titulos)
 
         # X
         add_trace!(fig, scatter(x=t_vec, y=X_hist, name="X (drone)",
@@ -396,8 +398,142 @@
                                 line=attr(color="red", dash="dash", width=2)), row=4, col=1)
 
         relayout!(fig, title_text="Estados do Drone vs Referência",
-                title_x=0.5, height=900, width=800, hovermode="x unified")
+                  title_x=0.5, height=900, width=800, hovermode="x unified")
         relayout!(fig, xaxis4_title="Tempo (s)")
+        display(fig)
+    end
+
+    function plotarEsforcoMotores(solucao)
+        # IMPORTANTE: A simulação deve ter rodado com salvar_controle=true
+        if !hasproperty(solucao, :controle) || isempty(solucao.controle)
+            println("⚠️ Aviso: O histórico de controle não foi encontrado.")
+            println("Certifique-se de usar salvar_controle=true na função resolverSistema().")
+            return
+        end
+
+        # Extrai o vetor de tempo
+        t_vec = solucao.t
+        U_hist = solucao.controle 
+        
+        # Prevenção de Bug: Garante que t_vec e U_hist tenham o mesmo tamanho 
+        # (caso o SavingCallback tenha salvo em uma taxa ligeiramente diferente do solver)
+        if length(t_vec) != length(U_hist)
+            t_vec = range(solucao.t[1], solucao.t[end], length=length(U_hist))
+        end
+
+        # Extraindo as ações para cada um dos 4 canais/motores
+        U1 = [u[1] for u in U_hist]
+        U2 = [u[2] for u in U_hist]
+        U3 = [u[3] for u in U_hist]
+        U4 = [u[4] for u in U_hist]
+
+        # CRIANDO A MATRIZ DE TÍTULOS (Sintaxe nativa do Julia para Matriz 2x2)
+        # Isso evita aquele mesmo Erro de Tipagem do PlotlyJS!
+        titulos = ["T" "τϕ"; 
+                "τθ" "τψ"]
+
+        fig = make_subplots(rows=2, cols=2,
+                            shared_xaxes=true, 
+                            vertical_spacing=0.1, horizontal_spacing=0.1,
+                            subplot_titles=titulos)
+
+        # Motor 1 (Superior Esquerdo)
+        add_trace!(fig, scatter(x=t_vec, y=U1, name="Motor 1", 
+                                line=attr(color="#1f77b4", width=2)), row=1, col=1)
+        # Motor 2 (Superior Direito)
+        add_trace!(fig, scatter(x=t_vec, y=U2, name="Motor 2", 
+                                line=attr(color="#ff7f0e", width=2)), row=1, col=2)
+        # Motor 3 (Inferior Esquerdo)
+        add_trace!(fig, scatter(x=t_vec, y=U3, name="Motor 3", 
+                                line=attr(color="#2ca02c", width=2)), row=2, col=1)
+        # Motor 4 (Inferior Direito)
+        add_trace!(fig, scatter(x=t_vec, y=U4, name="Motor 4", 
+                                line=attr(color="#d62728", width=2)), row=2, col=2)
+
+        # Ajustando layout da figura
+        relayout!(fig, title_text="Esforço de Controle dos Motores ao Longo da Trajetória",
+                title_x=0.5, height=600, width=800, hovermode="x unified")
+        
+        # Nomeando os eixos X inferiores (linha 2)
+        relayout!(fig, xaxis3_title="Tempo (s)", xaxis4_title="Tempo (s)")
+        
+        display(fig)
+    end
+
+    function converter_U_para_RPM(U_vetor, L, k_f, c_d; rpm_min=1500.0, rpm_max=28860.0)
+        U1, U2, U3, U4 = U_vetor
+
+        # Forças correspondentes aos limites de RPM (F = k_f * ω^2)
+        F_min = k_f * (rpm_min * 2π / 60)^2
+        F_max = k_f * (rpm_max * 2π / 60)^2
+
+        # Matriz Mixer
+        F1 = (U1 / 4) - (U2 / (4*L)) + (U3 / (4*L)) + (U4 / (4*c_d))
+        F2 = (U1 / 4) + (U2 / (4*L)) - (U3 / (4*L)) + (U4 / (4*c_d))
+        F3 = (U1 / 4) + (U2 / (4*L)) + (U3 / (4*L)) - (U4 / (4*c_d))
+        F4 = (U1 / 4) - (U2 / (4*L)) - (U3 / (4*L)) - (U4 / (4*c_d))
+
+        # O SEGREDO DO MUNDO REAL: Clamp com limite inferior e superior!
+        F_clamped = clamp.([F1, F2, F3, F4], F_min, F_max)
+
+        # Converte Força de volta para RPM
+        RPM = sqrt.(F_clamped ./ k_f) .* (60 / (2*π))
+
+        return RPM
+    end
+    function plotarRPM_Motores(solucao; L=0.11, k_f=1.0547e-6, c_d=7.4038e-9)
+        # Verifica se os controles foram salvos
+        if !hasproperty(solucao, :controle) || isempty(solucao.controle)
+            println("⚠️ Aviso: O histórico de controle não foi encontrado.")
+            return
+        end
+
+        t_vec = solucao.t
+        U_hist = solucao.controle 
+        
+        # Prevenção de Bug de tamanho do vetor
+        if length(t_vec) != length(U_hist)
+            t_vec = range(solucao.t[1], solucao.t[end], length=length(U_hist))
+        end
+
+        # 1. Aplicando a Matriz Mixer em cada instante de tempo
+        # Isso converte a Lista de Vetores U em uma Lista de Vetores RPM
+        RPM_hist = [converter_U_para_RPM(U, L, k_f, c_d) for U in U_hist]
+
+        # 2. Separando os canais
+        RPM1 = [rpm[1] for rpm in RPM_hist] # Motor 1 (Traseiro Direito)
+        RPM2 = [rpm[2] for rpm in RPM_hist] # Motor 2 (Dianteiro Esquerdo)
+        RPM3 = [rpm[3] for rpm in RPM_hist] # Motor 3 (Dianteiro Direito)
+        RPM4 = [rpm[4] for rpm in RPM_hist] # Motor 4 (Traseiro Esquerdo)
+
+        # Criando a matriz 2x2 de títulos
+        titulos = ["Motor 1 (Tras. Dir.)" "Motor 2 (Dian. Esq.)"; 
+                "Motor 3 (Dian. Dir.)" "Motor 4 (Tras. Esq.)"]
+
+        fig = make_subplots(rows=2, cols=2,
+                            shared_xaxes=true, 
+                            vertical_spacing=0.12, horizontal_spacing=0.1,
+                            subplot_titles=titulos)
+
+        # Mapeando os motores no gráfico 2x2
+        add_trace!(fig, scatter(x=t_vec, y=RPM1, name="Motor 1", 
+                                line=attr(color="#1f77b4", width=2)), row=1, col=1)
+        add_trace!(fig, scatter(x=t_vec, y=RPM2, name="Motor 2", 
+                                line=attr(color="#ff7f0e", width=2)), row=1, col=2)
+        add_trace!(fig, scatter(x=t_vec, y=RPM3, name="Motor 3", 
+                                line=attr(color="#2ca02c", width=2)), row=2, col=1)
+        add_trace!(fig, scatter(x=t_vec, y=RPM4, name="Motor 4", 
+                                line=attr(color="#d62728", width=2)), row=2, col=2)
+
+        # Ajustando layout da figura
+        relayout!(fig, title_text="Telemetria de Atuadores: Rotação dos Motores (RPM)",
+                title_x=0.5, height=600, width=800, hovermode="x unified")
+        
+        # Nomeando os eixos X e Y
+        relayout!(fig, xaxis3_title="Tempo (s)", xaxis4_title="Tempo (s)",
+                    yaxis1_title="RPM", yaxis2_title="RPM",
+                    yaxis3_title="RPM", yaxis4_title="RPM")
+        
         display(fig)
     end
 # =========================================================
@@ -405,14 +541,14 @@
 # =========================================================
 # CONFIGURAÇÃO DO DRONE
     drone = Drone(
-        massa           = 0.468,
+        massa           = 0.777,
         gravidade       = 9.81,
-        Ixx             = 4.856e-3,
-        Iyy             = 4.856e-3,
-        Izz             = 8.801e-3,
-        Ct              = 2.980e-6,
-        Cl              = 1.14e-7,
-        L               = 0.225,
+        Ixx             = 0.0067,
+        Iyy             = 0.0059,
+        Izz             = 0.0116,
+        Ke              = 1.0547e-6,
+        Kr              = 7.4038e-9,
+        L               = 0.11,
         estadosIniciais = zeros(12)
     )
 # =========================================================
@@ -431,19 +567,13 @@
         # GanhosPID( 6.0,  0.10,  1.5,   0.5),    # θ  (pitch) → U3 [N·m]
         # GanhosPID( 3.0,  0.05,  0.8,   0.2),    # Ψ  (yaw)   → U4 [N·m]
 
-        # GanhosPID( 3.8587,  0.0652,  4.9918, Inf),
-        # GanhosPID( 1.7021,  0.0000,  2.6208, 0.40),
-        # GanhosPID( 2.2021,  0.0000,  2.4051, 0.40),
-        # GanhosPID(11.4769,  0.4095,  2.4697, 0.60),
-        # GanhosPID( 7.2441,  0.6217,  1.7874, 0.60),
-        # GanhosPID( 2.9824,  0.2280,  1.9736, 0.25)
+        GanhosPID(30.0000,  2.7949,  3.0000, Inf),
+        GanhosPID(30.0000,  0.0000,  9.6977, 0.20),
+        GanhosPID(26.5714,  0.0000,  8.6242, 0.20),
+        GanhosPID(29.5787, 27.2091,  0.3610, 0.60),
+        GanhosPID(30.0000, 28.8684,  0.3612, 0.60),
+        GanhosPID( 2.9084, 20.3289, 16.8399, 0.05)
 
-        GanhosPID( 7.1515,  0.0000,  3.4926, Inf),
-        GanhosPID( 1.1320,  0.0000,  1.9483, 0.40),
-        GanhosPID( 1.7349,  0.0000,  2.2943, 0.40),
-        GanhosPID( 9.7446,  0.0000,  1.1689, 0.60),
-        GanhosPID(10.0000,  0.0070,  2.6459, 0.60),
-        GanhosPID( 0.0000,  0.0500,  4.0163, 0.25)
     )
 # =========================================================
 
@@ -455,9 +585,8 @@
     # nome_traj  = "Hover Estacionário (Z = 2 m)"
 
     # ── Opção 2: Hélice ascendente ───────────────────────────────────
-    tspan      = (0.0, 40.0)
-    trajetoria = t -> trajetoriaHelice(t; raio=1.5, ω_giro=0.4,
-                                        v_subida=0.08, t_espera=4.0)
+    tspan      = (0.0, 50.0)
+    trajetoria = t -> trajetoriaHelice(t; raio=1.5, ω_giro=0.4, v_subida=0.08, t_espera=4.0)
     nome_traj  = "Hélice Ascendente"
 
     # ── Opção 3: Figura-8 ────────────────────────────────────────────
@@ -491,8 +620,72 @@
     # Estado inicial aumentado: [zeros(12 drone) ; zeros(6 integradores)]
     x0_aumentado = zeros(18)
 
-    sol = resolverSistema(drone_cascata_mf!, x0_aumentado, tspan, params;
-                        resolucao = 0.02)
+    function extrair_esforcos_drone(x, p::DroneTrajetoriaParams, t)
+        # Extração dos parâmetros globais do Drone [cite: 250]
+        d = p.drone
+        c = p.ctrl
+        g = d.gravidade
+
+        # 1. Extração dos estados mecânicos do drone [cite: 250, 251]
+        X,  Y,  Z  = x[1], x[2], x[3]
+        Vx, Vy, Vz = x[4], x[5], x[6]
+        Φ,  θ,  Ψ  = x[7], x[8], x[9]
+        VΦ, Vθ, VΨ = x[10], x[11], x[12]
+
+        # 2. Extração dos integradores do PID (estados 13 a 18) [cite: 251]
+        I_Z = x[13];  I_X = x[14];  I_Y = x[15]
+        I_Φ = x[16];  I_θ = x[17];  I_Ψ = x[18]
+
+        # 3. Referência de trajetória no instante 't' [cite: 251, 252]
+        ref       = p.trajetoria(t)
+        X_r, Y_r, Z_r = ref.X, ref.Y, ref.Z
+        Ψ_r           = ref.Ψ
+
+        # =========================================================================
+        # LÓGICA DE CONTROLE (Exatamente igual ao 'drone_cascata_mf!')
+        # =========================================================================
+
+        # ── MALHA EXTERNA ──────────────────────────────────────────────
+        e_Z = Z_r - Z 
+        e_X = X_r - X 
+        e_Y = Y_r - Y 
+
+        Vx_i =  Vx * cos(Ψ) - Vy * sin(Ψ) 
+        Vy_i =  Vx * sin(Ψ) + Vy * cos(Ψ) 
+
+        # U1 (Altitude / Empuxo) com Feedforward [cite: 253, 254]
+        U1_Δ = c.pid_Z.Kp * e_Z + c.pid_Z.Ki * I_Z + c.pid_Z.Kd * (-Vz) 
+        U1   = clamp(d.massa * g + U1_Δ, 0.0, 2.5 * d.massa * g) 
+
+        # Malha X e Y geram Acelerações Desejadas (ax_des e ay_des) [cite: 255]
+        ax_des = c.pid_X.Kp * e_X + c.pid_X.Ki * I_X + c.pid_X.Kd * (-Vx_i) 
+        ay_des = c.pid_Y.Kp * e_Y + c.pid_Y.Ki * I_Y + c.pid_Y.Kd * (-Vy_i) 
+
+        # Desacoplamento XY -> Gera as referências para Roll e Pitch [cite: 256, 257]
+        θ_des = clamp(( cos(Ψ) * ax_des + sin(Ψ) * ay_des) / g, -c.pid_X.lim, c.pid_X.lim) 
+        Φ_des = clamp(( sin(Ψ) * ax_des - cos(Ψ) * ay_des) / g, -c.pid_Y.lim, c.pid_Y.lim) 
+
+        # ── MALHA INTERNA ──────────────────────────────────────────────
+        e_Φ = Φ_des - Φ 
+        e_θ = θ_des - θ 
+        e_Ψ = atan(sin(Ψ_r - Ψ), cos(Ψ_r - Ψ))  # Mantém o erro angular entre -π e π [cite: 258]
+
+        # U2, U3, U4 (Atuação de Roll, Pitch e Yaw) [cite: 258, 259]
+        U2 = clamp(c.pid_Φ.Kp * e_Φ + c.pid_Φ.Ki * I_Φ + c.pid_Φ.Kd * (-VΦ), -c.pid_Φ.lim, c.pid_Φ.lim) 
+        U3 = clamp(c.pid_θ.Kp * e_θ + c.pid_θ.Ki * I_θ + c.pid_θ.Kd * (-Vθ), -c.pid_θ.lim, c.pid_θ.lim) 
+        U4 = clamp(c.pid_Ψ.Kp * e_Ψ + c.pid_Ψ.Ki * I_Ψ + c.pid_Ψ.Kd * (-VΨ), -c.pid_Ψ.lim, c.pid_Ψ.lim) 
+
+        # =========================================================================
+
+        return [U1, U2, U3, U4] # Devolve o vetor com os esforços para o gráfico [cite: 260, 261]
+    end
+
+    sol = resolverSistema(
+        drone_cascata_mf!, x0_aumentado, tspan, params; 
+        salvar_controle = true,
+        extrator_controle = extrair_esforcos_drone 
+    )
+
 
     # ── Métricas de rastreamento ─────────────────────────────────────
     refs_final = [trajetoria(t) for t in sol.t]
@@ -526,31 +719,35 @@
 
     # 3. Atitude e altitude
     plotarAtitudeEmpuxo(sol, trajetoria)
+
+    plotarEsforcoMotores(sol)
+
+    # plotarRPM_Motores(sol; L=0.11, k_f=1.0547e-6, c_d=7.4038e-9)
 # =========================================================
 
-# =========================================================
-# ANÁLISE DE PERFORMANCE POR CANAL
-    # Cria soluções fictícias com referência Z para usar analisarPerformance
-    sol_z = sol   # reutiliza a mesma solução, analisando estado 3 (Z)
+# # =========================================================
+# # ANÁLISE DE PERFORMANCE POR CANAL
+#     # Cria soluções fictícias com referência Z para usar analisarPerformance
+#     sol_z = sol   # reutiliza a mesma solução, analisando estado 3 (Z)
 
-    m_Z = analisarPerformance(sol_z;
-        referencia = trajetoria(tspan[2]).Z,  # referência final de Z
-        idx_estado = 3,
-        banda      = 0.05)
+#     m_Z = analisarPerformance(sol_z;
+#         referencia = trajetoria(tspan[2]).Z,  # referência final de Z
+#         idx_estado = 3,
+#         banda      = 0.05)
 
-    imprimirRelatorio(m_Z, nome = "Canal Altitude (Z)")
+#     imprimirRelatorio(m_Z, nome = "Canal Altitude (Z)")
 
-    # Análise da estabilidade de Roll e Pitch (devem permanecer próximos de zero)
-    m_Φ = analisarPerformance(sol;
-        referencia = 0.0,
-        idx_estado = 7,
-        banda      = 0.10)
+#     # Análise da estabilidade de Roll e Pitch (devem permanecer próximos de zero)
+#     m_Φ = analisarPerformance(sol;
+#         referencia = 0.0,
+#         idx_estado = 7,
+#         banda      = 0.10)
 
-    m_θ = analisarPerformance(sol;
-        referencia = 0.0,
-        idx_estado = 8,
-        banda      = 0.10)
+#     m_θ = analisarPerformance(sol;
+#         referencia = 0.0,
+#         idx_estado = 8,
+#         banda      = 0.10)
 
-    imprimirRelatorio(m_Φ, nome = "Estabilidade Roll Φ")
-    imprimirRelatorio(m_θ, nome = "Estabilidade Pitch θ")
-# =========================================================
+#     imprimirRelatorio(m_Φ, nome = "Estabilidade Roll Φ")
+#     imprimirRelatorio(m_θ, nome = "Estabilidade Pitch θ")
+# # =========================================================
